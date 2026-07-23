@@ -95,6 +95,14 @@ export default function Home() {
               />
             </label>
 
+            <label htmlFor="modelView">
+              Room model
+              <select id="modelView" name="modelView">
+                <option value="2d">2D floor plan</option>
+                <option value="3d">3D room model</option>
+              </select>
+            </label>
+
             <label htmlFor="mustHaves">
               Must-have items
               <textarea
@@ -133,9 +141,23 @@ export default function Home() {
               </div>
 
               <div className="result-grid">
+                <article className="result-card preview-card">
+                  <div className="card-heading-row">
+                    <h3>Room Model</h3>
+                    <span id="roomDimensionsBadge" className="dimension-badge"></span>
+                  </div>
+                  <div className="room-preview" id="roomPreview"></div>
+                  <p className="preview-caption" id="previewCaption"></p>
+                </article>
+
                 <article className="result-card">
                   <h3>Color Palette</h3>
                   <div className="palette" id="colorPalette"></div>
+                </article>
+
+                <article className="result-card product-card-wrap">
+                  <h3>Pieces to Choose</h3>
+                  <div className="product-grid" id="productPicks"></div>
                 </article>
 
                 <article className="result-card">
@@ -162,6 +184,10 @@ export default function Home() {
           </section>
         </section>
       </main>
+      <Script
+        src="https://unpkg.com/three@0.160.0/build/three.min.js"
+        strategy="beforeInteractive"
+      />
       <Script src="/room-design.js" strategy="afterInteractive" />
     </>
   );
