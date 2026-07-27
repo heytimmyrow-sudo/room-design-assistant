@@ -14,6 +14,13 @@ const productPicks = document.querySelector("#productPicks");
 const roomPreview = document.querySelector("#roomPreview");
 const roomDimensionsBadge = document.querySelector("#roomDimensionsBadge");
 const previewCaption = document.querySelector("#previewCaption");
+const saveButton = document.querySelector("#saveButton");
+const savedRoomList = document.querySelector("#savedRoomList");
+const saveStatus = document.querySelector("#saveStatus");
+
+const STORAGE_KEY = "roomDesignAssistant.savedRooms";
+let activeSaveId = "";
+let currentSnapshot = null;
 
 const stylePlans = {
   cozy: {
@@ -115,6 +122,61 @@ function splitLinks(value) {
     .split(/\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getSavedRooms() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function setSavedRooms(rooms) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
+}
+
+function createSaveId() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return `room-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getFormValues() {
+  const formData = new FormData(designForm);
+
+  return {
+    roomType: formData.get("roomType").trim(),
+    roomName: formData.get("roomName").trim(),
+    designStyle: formData.get("designStyle"),
+    favoriteColors: formData.get("favoriteColors").trim(),
+    budget: formData.get("budget"),
+    dimensions: formData.get("dimensions").trim(),
+    modelView: formData.get("modelView"),
+    mustHaves: formData.get("mustHaves").trim(),
+    furnitureLinks: formData.get("furnitureLinks").trim()
+  };
+}
+
+function setFormValues(values) {
+  Object.entries(values).forEach(([key, value]) => {
+    const field = designForm.elements.namedItem(key);
+
+    if (field) {
+      field.value = value || "";
+    }
+  });
+}
+
+function formatSavedDate(value) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function isImageUrl(url) {
@@ -337,6 +399,148 @@ function showFurnitureList(products) {
 
     furnitureList.appendChild(li);
   });
+}
+
+function renderSavedRooms() {
+  const savedRooms = getSavedRooms();
+  savedRoomList.innerHTML = "";
+
+  if (!savedRooms.length) {
+    const empty = document.createElement("p");
+    empty.className = "saved-empty";
+    empty.textContent = "No saved rooms yet.";
+    savedRoomList.appendChild(empty);
+    return;
+  }
+
+  savedRooms.forEach((room) => {
+    const card = document.createElement("article");
+    card.className = `saved-room-card${room.id === activeSaveId ? " is-active" : ""}`;
+
+    const title = document.createElement("h4");
+    title.textContent = room.name;
+
+    const meta = document.createElement("p");
+    meta.textContent = `${room.formValues.roomType || "Room"} - ${room.formValues.designStyle || "style"} - saved ${formatSavedDate(room.updatedAt)}`;
+
+    const actions = document.createElement("div");
+    actions.className = "saved-room-actions";
+
+    const loadButton = document.createElement("button");
+    loadButton.type = "button";
+    loadButton.className = "secondary-button";
+    loadButton.textContent = "Load";
+    loadButton.addEventListener("click", () => loadSavedRoom(room.id));
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "delete-room-button";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", () => deleteSavedRoom(room.id));
+
+    actions.append(loadButton, deleteButton);
+    card.append(title, meta, actions);
+    savedRoomList.appendChild(card);
+  });
+}
+
+function buildSnapshot(formValues, products) {
+  const plan = stylePlans[formValues.designStyle];
+  const dimensions = parseDimensions(formValues.dimensions);
+  const mustHaves = splitList(formValues.mustHaves);
+  const roomLabel = formValues.roomType || "Room";
+  const importedCount = products.filter((product) => product.imported).length;
+
+  return {
+    formValues,
+    products,
+    title: `${plan.titleWord} ${roomLabel} Design`,
+    description: `${plan.description} For a ${dimensions.label} space, pick pieces that match the room footprint before buying.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`,
+    layout: `${plan.layout} Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`,
+    palette: plan.palette,
+    decor: plan.decor,
+    checklist: buildChecklist(getBudgetTier(Number(formValues.budget)), mustHaves, products),
+    dimensions,
+    modelView: formValues.modelView
+  };
+}
+
+function renderSnapshot(snapshot) {
+  currentSnapshot = snapshot;
+  saveButton.disabled = false;
+
+  designTitle.textContent = snapshot.title;
+  styleDescription.textContent = snapshot.description;
+  layoutSuggestion.textContent = snapshot.layout;
+
+  showPalette(snapshot.palette, snapshot.formValues.favoriteColors);
+  showProducts(snapshot.products);
+  renderRoomPreview(snapshot.modelView, snapshot.dimensions, snapshot.products);
+  showFurnitureList(snapshot.products);
+  addListItems(decorIdeas, snapshot.decor);
+  addListItems(shoppingChecklist, snapshot.checklist);
+
+  emptyState.classList.add("hidden");
+  results.classList.remove("hidden");
+}
+
+function saveCurrentRoom() {
+  if (!currentSnapshot) {
+    return;
+  }
+
+  const savedRooms = getSavedRooms();
+  const formValues = getFormValues();
+  currentSnapshot.formValues = formValues;
+  const now = new Date().toISOString();
+  const fallbackName = `${formValues.roomName || formValues.roomType || "Untitled room"} plan`;
+  const savedRoom = {
+    id: activeSaveId || createSaveId(),
+    name: fallbackName,
+    updatedAt: now,
+    formValues,
+    snapshot: currentSnapshot
+  };
+  const nextRooms = [
+    savedRoom,
+    ...savedRooms.filter((room) => room.id !== savedRoom.id)
+  ];
+
+  activeSaveId = savedRoom.id;
+  setSavedRooms(nextRooms);
+  renderSavedRooms();
+  saveStatus.textContent = "Saved";
+  setTimeout(() => {
+    if (saveStatus.textContent === "Saved") {
+      saveStatus.textContent = "";
+    }
+  }, 1800);
+}
+
+function loadSavedRoom(id) {
+  const savedRoom = getSavedRooms().find((room) => room.id === id);
+
+  if (!savedRoom) {
+    return;
+  }
+
+  activeSaveId = id;
+  setFormValues(savedRoom.formValues);
+  renderSnapshot(savedRoom.snapshot);
+  renderSavedRooms();
+  saveStatus.textContent = "Loaded";
+}
+
+function deleteSavedRoom(id) {
+  const nextRooms = getSavedRooms().filter((room) => room.id !== id);
+  setSavedRooms(nextRooms);
+
+  if (activeSaveId === id) {
+    activeSaveId = "";
+  }
+
+  renderSavedRooms();
+  saveStatus.textContent = "Deleted";
 }
 
 function showPalette(colors, favoriteColors) {
@@ -647,35 +851,14 @@ async function generateDesign(event) {
   submitButton.textContent = "Loading store items...";
 
   try {
-  const formData = new FormData(designForm);
-  const roomType = formData.get("roomType").trim();
-  const selectedStyle = formData.get("designStyle");
-  const favoriteColors = formData.get("favoriteColors").trim();
-  const budget = Number(formData.get("budget"));
-  const dimensions = parseDimensions(formData.get("dimensions").trim());
-  const modelView = formData.get("modelView");
-  const mustHaves = splitList(formData.get("mustHaves"));
-  const furnitureLinks = splitLinks(formData.get("furnitureLinks"));
-
-  const plan = stylePlans[selectedStyle];
-  const budgetTier = getBudgetTier(budget);
+  const formValues = getFormValues();
+  const plan = stylePlans[formValues.designStyle];
+  const mustHaves = splitList(formValues.mustHaves);
+  const furnitureLinks = splitLinks(formValues.furnitureLinks);
   const products = await makeProducts(plan, mustHaves, furnitureLinks);
-  const roomLabel = roomType || "Room";
-  const importedCount = products.filter((product) => product.imported).length;
 
-  designTitle.textContent = `${plan.titleWord} ${roomLabel} Design`;
-  styleDescription.textContent = `${plan.description} For a ${dimensions.label} space, pick pieces that match the room footprint before buying.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`;
-  layoutSuggestion.textContent = `${plan.layout} Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`;
-
-  showPalette(plan.palette, favoriteColors);
-  showProducts(products);
-  renderRoomPreview(modelView, dimensions, products);
-  showFurnitureList(products);
-  addListItems(decorIdeas, plan.decor);
-  addListItems(shoppingChecklist, buildChecklist(budgetTier, mustHaves, products));
-
-  emptyState.classList.add("hidden");
-  results.classList.remove("hidden");
+  renderSnapshot(buildSnapshot(formValues, products));
+  renderSavedRooms();
   } catch {
     alert("Some store items could not be loaded. Please try again or paste a direct product image link.");
   } finally {
@@ -687,6 +870,10 @@ async function generateDesign(event) {
 function resetDesign() {
   results.classList.add("hidden");
   emptyState.classList.remove("hidden");
+  activeSaveId = "";
+  currentSnapshot = null;
+  saveButton.disabled = true;
+  saveStatus.textContent = "";
 
   designTitle.textContent = "";
   styleDescription.textContent = "";
@@ -699,7 +886,10 @@ function resetDesign() {
   roomPreview.innerHTML = "";
   roomDimensionsBadge.textContent = "";
   previewCaption.textContent = "";
+  renderSavedRooms();
 }
 
 designForm.addEventListener("submit", generateDesign);
 resetButton.addEventListener("click", resetDesign);
+saveButton.addEventListener("click", saveCurrentRoom);
+renderSavedRooms();

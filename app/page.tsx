@@ -51,6 +51,16 @@ export default function Home() {
               />
             </label>
 
+            <label htmlFor="roomName">
+              Room name
+              <input
+                type="text"
+                id="roomName"
+                name="roomName"
+                placeholder="Guest bedroom, basement game room..."
+              />
+            </label>
+
             <label htmlFor="designStyle">
               Design style
               <select id="designStyle" name="designStyle" required>
@@ -131,6 +141,20 @@ export default function Home() {
                 Reset
               </button>
             </div>
+
+            <button type="button" className="save-button" id="saveButton" disabled>
+              Save Room Plan
+            </button>
+
+            <section className="saved-rooms" aria-labelledby="savedRoomsTitle">
+              <div className="saved-rooms-header">
+                <h3 id="savedRoomsTitle">Saved Rooms</h3>
+                <span id="saveStatus" aria-live="polite"></span>
+              </div>
+              <div className="saved-room-list" id="savedRoomList">
+                <p className="saved-empty">No saved rooms yet.</p>
+              </div>
+            </section>
           </form>
 
           <section className="results-panel" id="resultsPanel" aria-live="polite">

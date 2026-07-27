@@ -274,6 +274,91 @@ button:disabled {
   background: #dfd1bd;
 }
 
+.save-button {
+  background: #232a34;
+  color: #ffffff;
+}
+
+.saved-rooms {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+
+.saved-rooms-header {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.saved-rooms-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.saved-rooms-header span {
+  color: var(--accent-dark);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.saved-room-list {
+  display: grid;
+  gap: 10px;
+}
+
+.saved-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.saved-room-card {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e2d6c9;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.saved-room-card.is-active {
+  border-color: rgba(15, 118, 110, 0.5);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
+}
+
+.saved-room-card h4,
+.saved-room-card p {
+  margin: 0;
+}
+
+.saved-room-card h4 {
+  font-size: 0.98rem;
+}
+
+.saved-room-card p {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.saved-room-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.saved-room-actions button {
+  min-height: 36px;
+  font-size: 0.86rem;
+}
+
+.delete-room-button {
+  background: #eadfce;
+  color: #3e342d;
+}
+
 .results-panel {
   min-height: 540px;
   padding: 24px;
