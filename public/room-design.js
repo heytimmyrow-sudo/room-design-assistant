@@ -132,6 +132,12 @@ function getLinkHost(value) {
 function titleFromLink(value, index) {
   try {
     const url = new URL(value);
+    const asinMatch = url.pathname.match(/\/(?:dp|gp\/product)\/([A-Z0-9]{10})/i);
+
+    if (asinMatch) {
+      return `Amazon Furniture Item ${asinMatch[1].toUpperCase()}`;
+    }
+
     const pathWords = url.pathname
       .split("/")
       .filter(Boolean)
@@ -173,6 +179,20 @@ function inferShapeFromLink(value, index) {
   }
 
   return ["seat", "table", "storage", "rug", "light"][index % 5];
+}
+
+async function fetchProductPreview(link) {
+  try {
+    const response = await fetch(`/api/product-preview?url=${encodeURIComponent(link)}`);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return await response.json();
+  } catch {
+    return null;
+  }
 }
 
 function parseDimensions(value) {
@@ -224,23 +244,36 @@ function buildChecklist(budgetTier, mustHaves, products) {
   return [...productChecks, ...mustHaveItems, ...budgetIdeas[budgetTier]];
 }
 
-function makeImportedProducts(furnitureLinks) {
+async function makeImportedProducts(furnitureLinks) {
   const colors = ["#8a6f52", "#415f65", "#936b5f", "#6f7558", "#3a4554"];
+  const previews = await Promise.all(furnitureLinks.slice(0, 5).map(fetchProductPreview));
 
-  return furnitureLinks.slice(0, 5).map((link, index) => ({
-    name: titleFromLink(link, index),
-    description: `Imported furniture object from ${getLinkHost(link)}. Place it by footprint before buying.`,
-    size: "measure from product page",
-    price: "use store price",
-    color: colors[index % colors.length],
-    shape: inferShapeFromLink(link, index),
-    sourceUrl: link,
-    imageUrl: isImageUrl(link) ? link : "",
-    imported: true
-  }));
+  return furnitureLinks.slice(0, 5).map((link, index) => {
+    const preview = previews[index] || {};
+    const store = preview.store || getLinkHost(link);
+    const title = preview.title || titleFromLink(link, index);
+    const price = preview.price ? String(preview.price) : "price unavailable";
+    const imageUrl = preview.image || (isImageUrl(link) ? link : "");
+
+    return {
+      name: title.replace(/\s*\|\s*Amazon.*$/i, "").slice(0, 90),
+      description: preview.blocked
+        ? `Store object from ${store}. The store blocked exact preview details, so open the link to confirm.`
+        : `Actual store item from ${store}. Use the linked page to confirm current availability.`,
+      size: "measure on store page",
+      price,
+      color: colors[index % colors.length],
+      shape: inferShapeFromLink(link, index),
+      sourceUrl: link,
+      imageUrl,
+      imported: true,
+      store,
+      previewBlocked: Boolean(preview.blocked || !preview.price || !imageUrl)
+    };
+  });
 }
 
-function makeProducts(plan, mustHaves, furnitureLinks) {
+async function makeProducts(plan, mustHaves, furnitureLinks) {
   const products = plan.products.map(([name, description, size, price, color, shape]) => ({
     name,
     description,
@@ -253,7 +286,7 @@ function makeProducts(plan, mustHaves, furnitureLinks) {
     imported: false
   }));
 
-  const importedProducts = makeImportedProducts(furnitureLinks);
+  const importedProducts = await makeImportedProducts(furnitureLinks);
 
   mustHaves.slice(0, 2).forEach((item) => {
     products.push({
@@ -279,6 +312,30 @@ function addListItems(container, items) {
     const li = document.createElement("li");
     li.textContent = item;
     container.appendChild(li);
+  });
+}
+
+function showFurnitureList(products) {
+  furnitureList.innerHTML = "";
+
+  products.forEach((product) => {
+    const li = document.createElement("li");
+
+    const mainText = document.createElement("span");
+    mainText.textContent = `${product.name} - ${product.size} - ${product.price}`;
+    li.appendChild(mainText);
+
+    if (product.sourceUrl) {
+      li.appendChild(document.createTextNode(" - "));
+      const link = document.createElement("a");
+      link.href = product.sourceUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = `View at ${product.store || getLinkHost(product.sourceUrl)}`;
+      li.appendChild(link);
+    }
+
+    furnitureList.appendChild(li);
   });
 }
 
@@ -360,11 +417,21 @@ function showProducts(products) {
     if (product.imported) {
       const imported = document.createElement("span");
       imported.className = "imported-tag";
-      imported.textContent = product.imageUrl ? "Imported image object" : "Imported object";
+      imported.textContent = product.previewBlocked ? "Open link to verify" : "Store item";
       meta.appendChild(imported);
     }
 
     body.append(title, description, meta);
+
+    if (product.sourceUrl) {
+      const storeLink = document.createElement("a");
+      storeLink.className = "store-link";
+      storeLink.href = product.sourceUrl;
+      storeLink.target = "_blank";
+      storeLink.rel = "noopener noreferrer";
+      storeLink.textContent = `View exact item at ${product.store || getLinkHost(product.sourceUrl)}`;
+      body.appendChild(storeLink);
+    }
 
     const chooseButton = document.createElement("button");
     chooseButton.type = "button";
@@ -434,6 +501,69 @@ function renderFloorPlan(dimensions, products) {
   roomPreview.appendChild(plan);
 }
 
+function addFurnitureObject(scene, product, item, THREE) {
+  const group = new THREE.Group();
+  group.position.set(item.pos[0], 0, item.pos[2]);
+  const material = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(product.color),
+    roughness: 0.62,
+    metalness: product.imported ? 0.08 : 0
+  });
+  const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x49392e, roughness: 0.7 });
+
+  if (product.shape === "seat") {
+    const base = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.48, item.size[2]), material);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.9, item.size[2] * 0.18), material);
+    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.08, item.size[1] * 0.72, item.size[2]), material);
+    const rightArm = leftArm.clone();
+
+    base.position.y = item.size[1] * 0.18;
+    back.position.set(0, item.size[1] * 0.48, -item.size[2] * 0.42);
+    leftArm.position.set(-item.size[0] * 0.46, item.size[1] * 0.34, 0);
+    rightArm.position.set(item.size[0] * 0.46, item.size[1] * 0.34, 0);
+    group.add(base, back, leftArm, rightArm);
+  } else if (product.shape === "table") {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.18, item.size[2]), material);
+    top.position.y = item.size[1] * 0.76;
+    group.add(top);
+
+    [-0.38, 0.38].forEach((x) => {
+      [-0.34, 0.34].forEach((z) => {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.08, item.size[1] * 0.7, item.size[2] * 0.08), darkMaterial);
+        leg.position.set(item.size[0] * x, item.size[1] * 0.35, item.size[2] * z);
+        group.add(leg);
+      });
+    });
+  } else if (product.shape === "rug") {
+    const rug = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1], item.size[2]), material);
+    rug.position.y = item.size[1] * 0.5;
+    group.add(rug);
+  } else if (product.shape === "light") {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, item.size[1], 16), darkMaterial);
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(item.size[0] * 0.24, item.size[0] * 0.32, item.size[1] * 0.22, 24), material);
+    pole.position.y = item.size[1] * 0.5;
+    shade.position.y = item.size[1] * 0.94;
+    group.add(pole, shade);
+  } else {
+    const cabinet = new THREE.Mesh(new THREE.BoxGeometry(...item.size), material);
+    const doorLine = new THREE.Mesh(new THREE.BoxGeometry(0.025, item.size[1] * 0.84, item.size[2] * 1.02), darkMaterial);
+    cabinet.position.y = item.size[1] * 0.5;
+    doorLine.position.y = item.size[1] * 0.5;
+    group.add(cabinet, doorLine);
+  }
+
+  if (product.imported) {
+    const tag = new THREE.Mesh(
+      new THREE.BoxGeometry(item.size[0] * 0.42, 0.05, item.size[2] * 0.08),
+      new THREE.MeshStandardMaterial({ color: 0xc8943f, roughness: 0.4 })
+    );
+    tag.position.y = item.size[1] + 0.08;
+    group.add(tag);
+  }
+
+  scene.add(group);
+}
+
 function render3DModel(dimensions, products) {
   roomPreview.innerHTML = `<canvas class="model-canvas" aria-label="3D room model"></canvas>`;
   const canvas = roomPreview.querySelector("canvas");
@@ -489,20 +619,7 @@ function render3DModel(dimensions, products) {
 
   products.slice(0, itemData.length).forEach((product, index) => {
     const item = itemData[index];
-    const material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(product.color),
-      roughness: 0.55
-    });
-
-    if (product.imported) {
-      material.emissive = new THREE.Color(0x2a1e08);
-      material.emissiveIntensity = 0.08;
-      material.metalness = 0.08;
-    }
-
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...item.size), material);
-    mesh.position.set(...item.pos);
-    scene.add(mesh);
+    addFurnitureObject(scene, product, item, THREE);
   });
 
   renderer.render(scene, camera);
@@ -521,9 +638,15 @@ function renderRoomPreview(modelView, dimensions, products) {
   previewCaption.textContent = `2D floor plan scaled from a ${dimensions.label} room, with width and length called out for shopping fit checks.`;
 }
 
-function generateDesign(event) {
+async function generateDesign(event) {
   event.preventDefault();
+  const submitButton = designForm.querySelector(".primary-button");
+  const originalButtonText = submitButton.textContent;
 
+  submitButton.disabled = true;
+  submitButton.textContent = "Loading store items...";
+
+  try {
   const formData = new FormData(designForm);
   const roomType = formData.get("roomType").trim();
   const selectedStyle = formData.get("designStyle");
@@ -536,7 +659,7 @@ function generateDesign(event) {
 
   const plan = stylePlans[selectedStyle];
   const budgetTier = getBudgetTier(budget);
-  const products = makeProducts(plan, mustHaves, furnitureLinks);
+  const products = await makeProducts(plan, mustHaves, furnitureLinks);
   const roomLabel = roomType || "Room";
   const importedCount = products.filter((product) => product.imported).length;
 
@@ -547,12 +670,18 @@ function generateDesign(event) {
   showPalette(plan.palette, favoriteColors);
   showProducts(products);
   renderRoomPreview(modelView, dimensions, products);
-  addListItems(furnitureList, products.map((product) => `${product.name} - ${product.size} - ${product.price}`));
+  showFurnitureList(products);
   addListItems(decorIdeas, plan.decor);
   addListItems(shoppingChecklist, buildChecklist(budgetTier, mustHaves, products));
 
   emptyState.classList.add("hidden");
   results.classList.remove("hidden");
+  } catch {
+    alert("Some store items could not be loaded. Please try again or paste a direct product image link.");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = originalButtonText;
+  }
 }
 
 function resetDesign() {

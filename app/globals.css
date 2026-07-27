@@ -249,6 +249,12 @@ button:hover {
   transform: translateY(-1px);
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
+}
+
 .primary-button {
   background: var(--accent);
   color: #ffffff;
@@ -638,6 +644,24 @@ li + li {
 .product-meta .imported-tag {
   background: rgba(200, 148, 63, 0.18);
   color: #6f4a08;
+}
+
+.store-link {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 10px;
+  color: var(--accent-dark);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.store-link:hover {
+  text-decoration: underline;
+}
+
+.result-card a {
+  color: var(--accent-dark);
+  font-weight: 800;
 }
 
 .choose-button {
