@@ -110,6 +110,71 @@ function splitList(value) {
     .filter(Boolean);
 }
 
+function splitLinks(value) {
+  return value
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function isImageUrl(url) {
+  return /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url);
+}
+
+function getLinkHost(value) {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return "pasted furniture";
+  }
+}
+
+function titleFromLink(value, index) {
+  try {
+    const url = new URL(value);
+    const pathWords = url.pathname
+      .split("/")
+      .filter(Boolean)
+      .pop()
+      ?.replace(/\.[a-z0-9]+$/i, "")
+      .split(/[-_+%20]+/)
+      .filter((word) => word && !/^\d+$/.test(word))
+      .slice(0, 4)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+
+    return pathWords || `Imported Furniture ${index + 1}`;
+  } catch {
+    return `Imported Furniture ${index + 1}`;
+  }
+}
+
+function inferShapeFromLink(value, index) {
+  const text = value.toLowerCase();
+
+  if (/sofa|couch|chair|loveseat|sectional|bench/.test(text)) {
+    return "seat";
+  }
+
+  if (/table|desk|stand|nightstand|console/.test(text)) {
+    return "table";
+  }
+
+  if (/rug|mat|carpet/.test(text)) {
+    return "rug";
+  }
+
+  if (/lamp|light|sconce/.test(text)) {
+    return "light";
+  }
+
+  if (/shelf|cabinet|dresser|bookcase|storage|wardrobe/.test(text)) {
+    return "storage";
+  }
+
+  return ["seat", "table", "storage", "rug", "light"][index % 5];
+}
+
 function parseDimensions(value) {
   const numbers = value.match(/\d+(\.\d+)?/g)?.map(Number) || [];
 
@@ -159,15 +224,36 @@ function buildChecklist(budgetTier, mustHaves, products) {
   return [...productChecks, ...mustHaveItems, ...budgetIdeas[budgetTier]];
 }
 
-function makeProducts(plan, mustHaves) {
+function makeImportedProducts(furnitureLinks) {
+  const colors = ["#8a6f52", "#415f65", "#936b5f", "#6f7558", "#3a4554"];
+
+  return furnitureLinks.slice(0, 5).map((link, index) => ({
+    name: titleFromLink(link, index),
+    description: `Imported furniture object from ${getLinkHost(link)}. Place it by footprint before buying.`,
+    size: "measure from product page",
+    price: "use store price",
+    color: colors[index % colors.length],
+    shape: inferShapeFromLink(link, index),
+    sourceUrl: link,
+    imageUrl: isImageUrl(link) ? link : "",
+    imported: true
+  }));
+}
+
+function makeProducts(plan, mustHaves, furnitureLinks) {
   const products = plan.products.map(([name, description, size, price, color, shape]) => ({
     name,
     description,
     size,
     price,
     color,
-    shape
+    shape,
+    sourceUrl: "",
+    imageUrl: "",
+    imported: false
   }));
+
+  const importedProducts = makeImportedProducts(furnitureLinks);
 
   mustHaves.slice(0, 2).forEach((item) => {
     products.push({
@@ -176,11 +262,14 @@ function makeProducts(plan, mustHaves) {
       size: "verify exact fit",
       price: "price compare",
       color: "#8a8f67",
-      shape: "storage"
+      shape: "storage",
+      sourceUrl: "",
+      imageUrl: "",
+      imported: false
     });
   });
 
-  return products.slice(0, 5);
+  return [...importedProducts, ...products].slice(0, 8);
 }
 
 function addListItems(container, items) {
@@ -227,22 +316,64 @@ function showProducts(products) {
     card.style.setProperty("--product-color", product.color);
     card.style.setProperty("--product-bg", `${product.color}22`);
 
-    card.innerHTML = `
-      <div class="product-visual" aria-hidden="true">
-        <div class="product-shape ${product.shape}"></div>
-      </div>
-      <div class="buy-card-body">
-        <h4>${product.name}</h4>
-        <p>${product.description}</p>
-        <div class="product-meta">
-          <span>${product.size}</span>
-          <span>${product.price}</span>
-        </div>
-      </div>
-      <button type="button" class="choose-button" aria-pressed="false">Choose this piece</button>
-    `;
+    const visual = document.createElement("div");
+    visual.className = "product-visual";
+    visual.setAttribute("aria-hidden", "true");
 
-    const chooseButton = card.querySelector(".choose-button");
+    if (product.imageUrl) {
+      const image = document.createElement("img");
+      image.className = "product-image";
+      image.src = product.imageUrl;
+      image.alt = "";
+      image.referrerPolicy = "no-referrer";
+      image.addEventListener("error", () => {
+        image.remove();
+        const fallbackShape = document.createElement("div");
+        fallbackShape.className = `product-shape ${product.shape}`;
+        visual.appendChild(fallbackShape);
+      });
+      visual.appendChild(image);
+    } else {
+      const shape = document.createElement("div");
+      shape.className = `product-shape ${product.shape}`;
+      visual.appendChild(shape);
+    }
+
+    const body = document.createElement("div");
+    body.className = "buy-card-body";
+
+    const title = document.createElement("h4");
+    title.textContent = product.name;
+
+    const description = document.createElement("p");
+    description.textContent = product.description;
+
+    const meta = document.createElement("div");
+    meta.className = "product-meta";
+
+    [product.size, product.price].forEach((text) => {
+      const badge = document.createElement("span");
+      badge.textContent = text;
+      meta.appendChild(badge);
+    });
+
+    if (product.imported) {
+      const imported = document.createElement("span");
+      imported.className = "imported-tag";
+      imported.textContent = product.imageUrl ? "Imported image object" : "Imported object";
+      meta.appendChild(imported);
+    }
+
+    body.append(title, description, meta);
+
+    const chooseButton = document.createElement("button");
+    chooseButton.type = "button";
+    chooseButton.className = "choose-button";
+    chooseButton.setAttribute("aria-pressed", "false");
+    chooseButton.textContent = "Choose this piece";
+
+    card.append(visual, body, chooseButton);
+
     chooseButton.addEventListener("click", () => {
       chooseButton.classList.toggle("is-selected");
       const isSelected = chooseButton.classList.contains("is-selected");
@@ -259,16 +390,48 @@ function showProducts(products) {
 }
 
 function renderFloorPlan(dimensions, products) {
-  roomPreview.innerHTML = `
-    <div class="floor-plan">
-      <span class="dimension-line width">${dimensions.width} ft</span>
-      <span class="dimension-line length">${dimensions.length} ft</span>
-      <div class="floor-item rug">${products[2]?.name || "Rug"}</div>
-      <div class="floor-item seat">${products.find((product) => product.shape === "seat")?.name || "Seating"}</div>
-      <div class="floor-item table">${products.find((product) => product.shape === "table")?.name || "Table"}</div>
-      <div class="floor-item storage">${products.find((product) => product.shape === "storage")?.name || "Storage"}</div>
-    </div>
-  `;
+  roomPreview.innerHTML = "";
+  const plan = document.createElement("div");
+  plan.className = "floor-plan";
+
+  const widthLine = document.createElement("span");
+  widthLine.className = "dimension-line width";
+  widthLine.textContent = `${dimensions.width} ft`;
+
+  const lengthLine = document.createElement("span");
+  lengthLine.className = "dimension-line length";
+  lengthLine.textContent = `${dimensions.length} ft`;
+
+  plan.append(widthLine, lengthLine);
+
+  const slots = [
+    { left: "8%", bottom: "16%", width: "39%", height: "24%" },
+    { left: "52%", bottom: "25%", width: "18%", height: "16%" },
+    { right: "7%", top: "12%", width: "18%", height: "44%" },
+    { left: "24%", top: "33%", width: "34%", height: "26%" },
+    { left: "8%", top: "10%", width: "20%", height: "18%" },
+    { right: "9%", bottom: "8%", width: "22%", height: "18%" }
+  ];
+
+  products.slice(0, slots.length).forEach((product, index) => {
+    const item = document.createElement("div");
+    item.className = `floor-item ${product.shape}${product.imported ? " imported-object" : ""}`;
+    item.textContent = product.name;
+    item.style.setProperty("--item-color", product.color);
+
+    if (product.imageUrl) {
+      item.style.backgroundImage = `url("${product.imageUrl}")`;
+      item.style.setProperty("--image-dim", "0.35");
+    }
+
+    Object.entries(slots[index]).forEach(([property, value]) => {
+      item.style[property] = value;
+    });
+
+    plan.appendChild(item);
+  });
+
+  roomPreview.appendChild(plan);
 }
 
 function render3DModel(dimensions, products) {
@@ -316,18 +479,28 @@ function render3DModel(dimensions, products) {
   scene.add(sideWall);
 
   const itemData = [
-    { shape: "rug", size: [width * 0.38, 0.08, length * 0.26], pos: [-width * 0.08, 0.05, length * 0.08] },
-    { shape: "seat", size: [width * 0.38, 0.62, length * 0.18], pos: [-width * 0.18, 0.35, length * 0.26] },
-    { shape: "table", size: [width * 0.16, 0.38, length * 0.14], pos: [width * 0.16, 0.24, length * 0.1] },
-    { shape: "storage", size: [width * 0.14, 1.35, length * 0.28], pos: [width * 0.32, 0.74, -length * 0.18] }
+    { size: [width * 0.38, 0.62, length * 0.18], pos: [-width * 0.18, 0.35, length * 0.26] },
+    { size: [width * 0.16, 0.38, length * 0.14], pos: [width * 0.16, 0.24, length * 0.1] },
+    { size: [width * 0.14, 1.35, length * 0.28], pos: [width * 0.32, 0.74, -length * 0.18] },
+    { size: [width * 0.38, 0.08, length * 0.26], pos: [-width * 0.08, 0.05, length * 0.08] },
+    { size: [width * 0.18, 0.5, length * 0.16], pos: [-width * 0.34, 0.28, -length * 0.22] },
+    { size: [width * 0.2, 0.44, length * 0.16], pos: [width * 0.28, 0.27, length * 0.34] }
   ];
 
-  itemData.forEach((item) => {
-    const product = products.find((candidate) => candidate.shape === item.shape) || products[0];
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(...item.size),
-      new THREE.MeshStandardMaterial({ color: new THREE.Color(product.color), roughness: 0.55 })
-    );
+  products.slice(0, itemData.length).forEach((product, index) => {
+    const item = itemData[index];
+    const material = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(product.color),
+      roughness: 0.55
+    });
+
+    if (product.imported) {
+      material.emissive = new THREE.Color(0x2a1e08);
+      material.emissiveIntensity = 0.08;
+      material.metalness = 0.08;
+    }
+
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...item.size), material);
     mesh.position.set(...item.pos);
     scene.add(mesh);
   });
@@ -359,14 +532,16 @@ function generateDesign(event) {
   const dimensions = parseDimensions(formData.get("dimensions").trim());
   const modelView = formData.get("modelView");
   const mustHaves = splitList(formData.get("mustHaves"));
+  const furnitureLinks = splitLinks(formData.get("furnitureLinks"));
 
   const plan = stylePlans[selectedStyle];
   const budgetTier = getBudgetTier(budget);
-  const products = makeProducts(plan, mustHaves);
+  const products = makeProducts(plan, mustHaves, furnitureLinks);
   const roomLabel = roomType || "Room";
+  const importedCount = products.filter((product) => product.imported).length;
 
   designTitle.textContent = `${plan.titleWord} ${roomLabel} Design`;
-  styleDescription.textContent = `${plan.description} For a ${dimensions.label} space, pick pieces that match the room footprint before buying.`;
+  styleDescription.textContent = `${plan.description} For a ${dimensions.label} space, pick pieces that match the room footprint before buying.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`;
   layoutSuggestion.textContent = `${plan.layout} Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`;
 
   showPalette(plan.palette, favoriteColors);

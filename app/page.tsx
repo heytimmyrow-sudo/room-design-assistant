@@ -113,6 +113,16 @@ export default function Home() {
               ></textarea>
             </label>
 
+            <label htmlFor="furnitureLinks">
+              Furniture links
+              <textarea
+                id="furnitureLinks"
+                name="furnitureLinks"
+                rows={4}
+                placeholder="Paste furniture product or image links, one per line..."
+              ></textarea>
+            </label>
+
             <div className="button-row">
               <button type="submit" className="primary-button">
                 Generate Design
