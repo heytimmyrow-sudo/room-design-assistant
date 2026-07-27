@@ -191,6 +191,10 @@ function getLinkHost(value) {
   }
 }
 
+function makeShoppingSearchLink(query) {
+  return `https://www.amazon.com/s?k=${encodeURIComponent(query)}`;
+}
+
 function titleFromLink(value, index) {
   try {
     const url = new URL(value);
@@ -343,9 +347,11 @@ async function makeProducts(plan, mustHaves, furnitureLinks) {
     price,
     color,
     shape,
-    sourceUrl: "",
+    sourceUrl: makeShoppingSearchLink(name),
     imageUrl: "",
-    imported: false
+    imported: false,
+    store: "Amazon search",
+    searchLink: true
   }));
 
   const importedProducts = await makeImportedProducts(furnitureLinks);
@@ -358,9 +364,11 @@ async function makeProducts(plan, mustHaves, furnitureLinks) {
       price: "price compare",
       color: "#8a8f67",
       shape: "storage",
-      sourceUrl: "",
+      sourceUrl: makeShoppingSearchLink(`${item} furniture`),
       imageUrl: "",
-      imported: false
+      imported: false,
+      store: "Amazon search",
+      searchLink: true
     });
   });
 
@@ -393,7 +401,9 @@ function showFurnitureList(products) {
       link.href = product.sourceUrl;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = `View at ${product.store || getLinkHost(product.sourceUrl)}`;
+      link.textContent = product.searchLink
+        ? `Shop similar on ${product.store}`
+        : `View exact item at ${product.store || getLinkHost(product.sourceUrl)}`;
       li.appendChild(link);
     }
 
@@ -465,7 +475,23 @@ function buildSnapshot(formValues, products) {
   };
 }
 
+function ensureProductLinks(products) {
+  return products.map((product) => {
+    if (product.sourceUrl) {
+      return product;
+    }
+
+    return {
+      ...product,
+      sourceUrl: makeShoppingSearchLink(product.name),
+      store: "Amazon search",
+      searchLink: true
+    };
+  });
+}
+
 function renderSnapshot(snapshot) {
+  snapshot.products = ensureProductLinks(snapshot.products);
   currentSnapshot = snapshot;
   saveButton.disabled = false;
 
@@ -633,7 +659,9 @@ function showProducts(products) {
       storeLink.href = product.sourceUrl;
       storeLink.target = "_blank";
       storeLink.rel = "noopener noreferrer";
-      storeLink.textContent = `View exact item at ${product.store || getLinkHost(product.sourceUrl)}`;
+      storeLink.textContent = product.searchLink
+        ? `Shop similar on ${product.store}`
+        : `View exact item at ${product.store || getLinkHost(product.sourceUrl)}`;
       body.appendChild(storeLink);
     }
 
