@@ -569,6 +569,7 @@ function renderSavedRooms() {
   savedRooms.forEach((room) => {
     const card = document.createElement("article");
     card.className = `saved-room-card${room.id === activeSaveId ? " is-active" : ""}`;
+    card.setAttribute("aria-label", `${room.name} saved room`);
 
     const title = document.createElement("h4");
     title.textContent = room.name;
@@ -583,12 +584,14 @@ function renderSavedRooms() {
     loadButton.type = "button";
     loadButton.className = "secondary-button";
     loadButton.textContent = "Load";
+    loadButton.setAttribute("aria-label", `Load ${room.name}`);
     loadButton.addEventListener("click", () => loadSavedRoom(room.id));
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "delete-room-button";
     deleteButton.textContent = "Delete";
+    deleteButton.setAttribute("aria-label", `Delete ${room.name}`);
     deleteButton.addEventListener("click", () => deleteSavedRoom(room.id));
 
     actions.append(loadButton, deleteButton);
@@ -756,6 +759,7 @@ function showProducts(products) {
   products.forEach((product, index) => {
     const card = document.createElement("article");
     card.className = "buy-card";
+    card.setAttribute("aria-label", `${product.name}, ${product.size}, ${product.price}`);
     card.style.setProperty("--product-color", product.color);
     card.style.setProperty("--product-bg", `${product.color}22`);
 
@@ -827,6 +831,7 @@ function showProducts(products) {
         : product.searchLink
         ? `Shop similar on ${product.store}`
         : `View exact item at ${product.store || getLinkHost(product.sourceUrl)}`;
+      storeLink.setAttribute("aria-label", `${storeLink.textContent} for ${product.name}`);
       body.appendChild(storeLink);
     }
 
@@ -834,6 +839,7 @@ function showProducts(products) {
     chooseButton.type = "button";
     chooseButton.className = "choose-button";
     chooseButton.setAttribute("aria-pressed", "false");
+    chooseButton.setAttribute("aria-label", `Choose ${product.name}`);
     chooseButton.textContent = "Choose this piece";
 
     card.append(visual, body, chooseButton);
@@ -843,6 +849,7 @@ function showProducts(products) {
       const isSelected = chooseButton.classList.contains("is-selected");
       chooseButton.textContent = isSelected ? "Chosen" : "Choose this piece";
       chooseButton.setAttribute("aria-pressed", String(isSelected));
+      chooseButton.setAttribute("aria-label", `${isSelected ? "Remove" : "Choose"} ${product.name}`);
     });
 
     if (index === 0) {
@@ -857,6 +864,8 @@ function renderFloorPlan(dimensions, products) {
   roomPreview.innerHTML = "";
   const plan = document.createElement("div");
   plan.className = "floor-plan";
+  plan.setAttribute("role", "img");
+  plan.setAttribute("aria-label", `2D floor plan for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces.`);
 
   const widthLine = document.createElement("span");
   widthLine.className = "dimension-line width";
@@ -964,6 +973,8 @@ function addFurnitureObject(scene, product, item, THREE) {
 function render3DModel(dimensions, products) {
   roomPreview.innerHTML = `<canvas class="model-canvas" aria-label="3D room model"></canvas>`;
   const canvas = roomPreview.querySelector("canvas");
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute("aria-label", `3D room model for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces.`);
 
   if (!window.THREE) {
     renderFloorPlan(dimensions, products);

@@ -9,11 +9,11 @@ export const metadata = {
 export default function Home() {
   return (
     <>
-      <main className="app-shell">
-        <section className="hero">
+      <main className="app-shell" aria-labelledby="appTitle">
+        <section className="hero" aria-labelledby="appTitle">
           <div>
             <p className="eyebrow">Interior planning tool</p>
-            <h1>Room Design Assistant</h1>
+            <h1 id="appTitle">Room Design Assistant</h1>
             <p className="hero-copy">
               Turn a few room details into a practical design concept,
               furniture plan, decor direction, and budget-friendly shopping
@@ -33,10 +33,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="workspace">
-          <form className="design-form" id="designForm">
+        <section className="workspace" aria-label="Room design workspace">
+          <form className="design-form" id="designForm" aria-labelledby="designFormTitle">
             <div className="form-header">
-              <h2>Design Details</h2>
+              <h2 id="designFormTitle">Design Details</h2>
               <p>Enter what matters most, then generate a room plan.</p>
             </div>
 
@@ -91,6 +91,7 @@ export default function Home() {
                 name="budget"
                 min="0"
                 step="50"
+                inputMode="numeric"
                 placeholder="1200"
               />
             </label>
@@ -133,10 +134,12 @@ export default function Home() {
               ></textarea>
             </label>
 
-            <section className="product-source">
+            <section className="product-source" aria-labelledby="productSourceTitle">
               <div className="product-source-header">
-                <h3>Product Source</h3>
-                <span id="productSourceStatus">Search links active</span>
+                <h3 id="productSourceTitle">Product Source</h3>
+                <span id="productSourceStatus" aria-live="polite">
+                  Search links active
+                </span>
               </div>
               <label htmlFor="productSource">
                 Exact product matching
@@ -193,10 +196,15 @@ export default function Home() {
             </section>
           </form>
 
-          <section className="results-panel" id="resultsPanel" aria-live="polite">
+          <section
+            className="results-panel"
+            id="resultsPanel"
+            aria-label="Generated room design results"
+            aria-live="polite"
+          >
             <div className="empty-state" id="emptyState">
-              <span className="empty-icon">+</span>
-              <h2>Your design plan will appear here</h2>
+              <span className="empty-icon" aria-hidden="true">+</span>
+              <h2 id="resultsTitle">Your design plan will appear here</h2>
               <p>
                 Choose a style, add your room details, and generate a tailored
                 plan.
