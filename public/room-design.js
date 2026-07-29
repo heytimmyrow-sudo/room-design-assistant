@@ -1299,6 +1299,34 @@ function addFurnitureObject(scene, product, item, THREE) {
   }
 
   scene.add(group);
+  group.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+      addEdgeLines(child, THREE, 0x3f352d);
+    }
+  });
+}
+
+function addEdgeLines(object, THREE, color = 0x5d5147) {
+  if (!object.geometry) {
+    return;
+  }
+
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(object.geometry),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.55 })
+  );
+  edges.position.copy(object.position);
+  edges.rotation.copy(object.rotation);
+  edges.scale.copy(object.scale);
+  object.parent?.add(edges);
+}
+
+function addRoomBox(scene, mesh, THREE, edgeColor = 0x8f7f70) {
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  addEdgeLines(mesh, THREE, edgeColor);
 }
 
 function getWallOffset(position, size) {
@@ -1497,25 +1525,34 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(renderWidth, renderHeight, false);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.58));
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(4, 8, 6);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.78));
+  const light = new THREE.DirectionalLight(0xffffff, 1.35);
+  light.position.set(5, 9, 7);
+  light.castShadow = true;
   scene.add(light);
 
   const floor = new THREE.Mesh(
     new THREE.BoxGeometry(width, 0.16, length),
-    new THREE.MeshStandardMaterial({ color: 0xd8c3aa, roughness: 0.8 })
+    new THREE.MeshStandardMaterial({ color: 0xe3cdae, roughness: 0.74 })
   );
   floor.position.y = -0.08;
-  scene.add(floor);
+  addRoomBox(scene, floor, THREE, 0x9b8369);
+
+  const grid = new THREE.GridHelper(Math.max(width, length), Math.max(width, length), 0x9b8369, 0xcab8a1);
+  grid.position.y = 0.012;
+  grid.material.transparent = true;
+  grid.material.opacity = 0.35;
+  scene.add(grid);
 
   roomShape.spaces.slice(0, 4).forEach((space, index) => {
     const spaceWidth = Math.min(Math.max(space.width, 3), width * 0.85);
     const spaceLength = Math.min(Math.max(space.length, 3), length * 0.85);
     const extraFloor = new THREE.Mesh(
       new THREE.BoxGeometry(spaceWidth, 0.14, spaceLength),
-      new THREE.MeshStandardMaterial({ color: 0xcfe1d6, roughness: 0.82 })
+      new THREE.MeshStandardMaterial({ color: 0xb8d6c5, roughness: 0.76 })
     );
     const offset = (index - 1.5) * 0.9;
 
@@ -1529,11 +1566,17 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
       extraFloor.position.set(width / 2 + spaceWidth / 2, -0.07, offset);
     }
 
-    scene.add(extraFloor);
+    addRoomBox(scene, extraFloor, THREE, 0x5f8b75);
   });
 
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xf7eee3, roughness: 0.9 });
-  const openWallMaterial = new THREE.MeshStandardMaterial({ color: 0xf7eee3, roughness: 0.9, transparent: true, opacity: 0.72 });
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xfff7eb, roughness: 0.86 });
+  const openWallMaterial = new THREE.MeshStandardMaterial({
+    color: 0xfff7eb,
+    roughness: 0.86,
+    transparent: true,
+    opacity: 0.06,
+    depthWrite: false
+  });
   const wallSpecs = [
     { name: "back", size: [width, 3, 0.15], pos: [0, 1.5, -length / 2], material: wallMaterial },
     { name: "front", size: [width, 3, 0.15], pos: [0, 1.5, length / 2], material: openWallMaterial },
@@ -1543,12 +1586,12 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   wallSpecs.forEach((wall) => {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(...wall.size), wall.material);
     mesh.position.set(...wall.pos);
-    scene.add(mesh);
+    addRoomBox(scene, mesh, THREE, wall.name === "front" || wall.name === "right" ? 0xd9cabb : 0xa79888);
   });
 
   const ceiling = new THREE.Mesh(
     new THREE.BoxGeometry(width, 0.08, length),
-    new THREE.MeshStandardMaterial({ color: 0xfff8ed, roughness: 0.88, transparent: true, opacity: 0.58 })
+    new THREE.MeshStandardMaterial({ color: 0xfff8ed, roughness: 0.88, transparent: true, opacity: 0.08, depthWrite: false })
   );
   ceiling.position.y = 3;
   scene.add(ceiling);
