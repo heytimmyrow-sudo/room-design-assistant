@@ -976,13 +976,16 @@ function render3DModel(dimensions, products) {
 
   const width = Math.max(dimensions.width, 8);
   const length = Math.max(dimensions.length, 8);
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+  const previewBox = roomPreview.getBoundingClientRect();
+  const renderWidth = Math.max(Math.round(previewBox.width || roomPreview.clientWidth || roomPreview.offsetWidth || 640), 320);
+  const renderHeight = 330;
+  const camera = new THREE.PerspectiveCamera(45, renderWidth / renderHeight, 0.1, 1000);
   camera.position.set(width * 0.72, Math.max(width, length) * 0.82, length * 0.88);
   camera.lookAt(0, 0, 0);
 
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(roomPreview.clientWidth, 330, false);
+  renderer.setSize(renderWidth, renderHeight, false);
 
   scene.add(new THREE.AmbientLight(0xffffff, 0.72));
   const light = new THREE.DirectionalLight(0xffffff, 1);
