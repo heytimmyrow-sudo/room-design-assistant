@@ -153,8 +153,11 @@ function setProductSettings(settings) {
 function updateProductSourceStatus() {
   const source = designForm.elements.namedItem("productSource")?.value;
   const apiKey = designForm.elements.namedItem("productApiKey")?.value.trim();
+  const addStoreLinks = designForm.elements.namedItem("addStoreLinks")?.checked !== false;
 
-  productSourceStatus.textContent = source === "bestbuy" && apiKey
+  productSourceStatus.textContent = !addStoreLinks
+    ? "Store links off"
+    : source === "bestbuy" && apiKey
     ? "Exact products active"
     : "Search links active";
 }
@@ -195,7 +198,8 @@ function getFormValues() {
     mustHaves: formData.get("mustHaves").trim(),
     furnitureLinks: formData.get("furnitureLinks").trim(),
     productSource: formData.get("productSource"),
-    productApiKey: formData.get("productApiKey").trim()
+    productApiKey: formData.get("productApiKey").trim(),
+    addStoreLinks: formData.get("addStoreLinks") === "on"
   };
 }
 
@@ -204,7 +208,11 @@ function setFormValues(values) {
     const field = designForm.elements.namedItem(key);
 
     if (field) {
-      field.value = value || "";
+      if (field.type === "checkbox") {
+        field.checked = value !== false;
+      } else {
+        field.value = value || "";
+      }
     }
   });
 }
@@ -437,6 +445,7 @@ function makeExactGeneratedProduct(match, fallback, color, shape) {
 }
 
 async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
+  const shouldAddLinks = productSettings.addStoreLinks !== false;
   const generatedBases = plan.products.map(([name, description, size, price, color, shape]) => ({
     name,
     description,
@@ -446,7 +455,7 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
     shape
   }));
   const exactMatches = await Promise.all(
-    generatedBases.map((product) => fetchExactProduct(product.name, productSettings))
+    generatedBases.map((product) => shouldAddLinks ? fetchExactProduct(product.name, productSettings) : null)
   );
   const products = generatedBases.map((product, index) => {
     const exactMatch = exactMatches[index];
@@ -455,7 +464,7 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
       return makeExactGeneratedProduct(exactMatch, product, product.color, product.shape);
     }
 
-    return makeSearchProduct(
+    const searchProduct = makeSearchProduct(
       product.name,
       product.description,
       product.size,
@@ -463,9 +472,13 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
       product.color,
       product.shape
     );
+    return shouldAddLinks ? searchProduct : { ...searchProduct, sourceUrl: "", searchLink: false };
   });
 
   const importedProducts = await makeImportedProducts(furnitureLinks);
+  const normalizedImportedProducts = importedProducts.map((product) => shouldAddLinks
+    ? product
+    : { ...product, sourceUrl: "", searchLink: false });
 
   const mustHaveBases = mustHaves.slice(0, 2).map((item) => ({
     name: `Must-Have Pick: ${item}`,
@@ -477,7 +490,7 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
     shape: "storage"
   }));
   const mustHaveMatches = await Promise.all(
-    mustHaveBases.map((product) => fetchExactProduct(product.query, productSettings))
+    mustHaveBases.map((product) => shouldAddLinks ? fetchExactProduct(product.query, productSettings) : null)
   );
 
   mustHaveBases.forEach((product, index) => {
@@ -488,7 +501,7 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
       return;
     }
 
-    products.push(makeSearchProduct(
+    const searchProduct = makeSearchProduct(
       product.name,
       product.description,
       product.size,
@@ -496,10 +509,11 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
       product.color,
       product.shape,
       product.query
-    ));
+    );
+    products.push(shouldAddLinks ? searchProduct : { ...searchProduct, sourceUrl: "", searchLink: false });
   });
 
-  return [...importedProducts, ...products].slice(0, 8);
+  return [...normalizedImportedProducts, ...products].slice(0, 8);
 }
 
 function addListItems(container, items) {
@@ -604,8 +618,18 @@ function buildSnapshot(formValues, products) {
   };
 }
 
-function ensureProductLinks(products) {
+function ensureProductLinks(products, formValues) {
+  const shouldAddLinks = formValues?.addStoreLinks !== false;
+
   return products.map((product) => {
+    if (!shouldAddLinks) {
+      return {
+        ...product,
+        sourceUrl: "",
+        searchLink: false
+      };
+    }
+
     if (product.sourceUrl) {
       return product;
     }
@@ -620,7 +644,7 @@ function ensureProductLinks(products) {
 }
 
 function renderSnapshot(snapshot) {
-  snapshot.products = ensureProductLinks(snapshot.products);
+  snapshot.products = ensureProductLinks(snapshot.products, snapshot.formValues);
   currentSnapshot = snapshot;
   saveButton.disabled = false;
 
@@ -681,6 +705,9 @@ function loadSavedRoom(id) {
 
   activeSaveId = id;
   setFormValues(savedRoom.formValues);
+  if (savedRoom.formValues.addStoreLinks === undefined) {
+    designForm.elements.namedItem("addStoreLinks").checked = true;
+  }
   renderSnapshot(savedRoom.snapshot);
   renderSavedRooms();
   saveStatus.textContent = "Loaded";
@@ -1020,7 +1047,8 @@ async function generateDesign(event) {
   const formValues = getFormValues();
   const productSettings = {
     productSource: formValues.productSource,
-    productApiKey: formValues.productApiKey
+    productApiKey: formValues.productApiKey,
+    addStoreLinks: formValues.addStoreLinks
   };
   setProductSettings(productSettings);
   updateProductSourceStatus();
@@ -1078,5 +1106,6 @@ designForm.elements.namedItem("productApiKey").addEventListener("input", () => {
   });
   updateProductSourceStatus();
 });
+designForm.elements.namedItem("addStoreLinks").addEventListener("change", updateProductSourceStatus);
 restoreProductSettings();
 renderSavedRooms();

@@ -159,6 +159,16 @@ export default function Home() {
               </p>
             </section>
 
+            <label className="checkbox-row" htmlFor="addStoreLinks">
+              <input
+                type="checkbox"
+                id="addStoreLinks"
+                name="addStoreLinks"
+                defaultChecked
+              />
+              Add store link?
+            </label>
+
             <div className="button-row">
               <button type="submit" className="primary-button">
                 Generate Design
