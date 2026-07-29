@@ -18,6 +18,8 @@ const saveButton = document.querySelector("#saveButton");
 const savedRoomList = document.querySelector("#savedRoomList");
 const saveStatus = document.querySelector("#saveStatus");
 const productSourceStatus = document.querySelector("#productSourceStatus");
+const extraSpaces = document.querySelector("#extraSpaces");
+const addSpaceButton = document.querySelector("#addSpaceButton");
 
 const STORAGE_KEY = "roomDesignAssistant.savedRooms";
 const PRODUCT_SETTINGS_KEY = "roomDesignAssistant.productSettings";
@@ -184,6 +186,68 @@ function createSaveId() {
   return `room-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function createExtraSpaceRow(space = {}) {
+  const row = document.createElement("div");
+  row.className = "extra-space-row";
+
+  row.innerHTML = `
+    <label>
+      Extra space name
+      <input type="text" name="extraSpaceName" placeholder="Nook, closet, alcove...">
+    </label>
+    <label>
+      Dimensions
+      <input type="text" name="extraSpaceDimensions" placeholder="5 x 7 ft">
+    </label>
+    <label>
+      Connects to
+      <select name="extraSpaceSide">
+        <option value="right">Right side</option>
+        <option value="left">Left side</option>
+        <option value="back">Back wall</option>
+        <option value="front">Front wall</option>
+      </select>
+    </label>
+    <button type="button" class="remove-space-button" aria-label="Remove this extra space">Remove</button>
+  `;
+
+  row.querySelector('[name="extraSpaceName"]').value = space.name || "";
+  row.querySelector('[name="extraSpaceDimensions"]').value = space.dimensions || "";
+  row.querySelector('[name="extraSpaceSide"]').value = space.side || "right";
+  row.querySelector(".remove-space-button").addEventListener("click", () => {
+    if (extraSpaces.children.length > 1) {
+      row.remove();
+      return;
+    }
+
+    row.querySelector('[name="extraSpaceName"]').value = "";
+    row.querySelector('[name="extraSpaceDimensions"]').value = "";
+    row.querySelector('[name="extraSpaceSide"]').value = "right";
+  });
+
+  return row;
+}
+
+function resetExtraSpaceRows(spaces = [{}]) {
+  extraSpaces.innerHTML = "";
+  const rows = spaces.length ? spaces : [{}];
+  rows.forEach((space) => extraSpaces.appendChild(createExtraSpaceRow(space)));
+}
+
+function getExtraSpaceValues(formData) {
+  const names = formData.getAll("extraSpaceName");
+  const dimensions = formData.getAll("extraSpaceDimensions");
+  const sides = formData.getAll("extraSpaceSide");
+
+  return names
+    .map((name, index) => ({
+      name: String(name || "").trim(),
+      dimensions: String(dimensions[index] || "").trim(),
+      side: String(sides[index] || "right")
+    }))
+    .filter((space) => space.name || space.dimensions);
+}
+
 function getFormValues() {
   const formData = new FormData(designForm);
 
@@ -194,6 +258,9 @@ function getFormValues() {
     favoriteColors: formData.get("favoriteColors").trim(),
     budget: formData.get("budget"),
     dimensions: formData.get("dimensions").trim(),
+    doorLocation: formData.get("doorLocation") || "front",
+    doorNote: formData.get("doorNote").trim(),
+    extraSpaces: getExtraSpaceValues(formData),
     modelView: formData.get("modelView"),
     mustHaves: formData.get("mustHaves").trim(),
     furnitureLinks: formData.get("furnitureLinks").trim(),
@@ -204,7 +271,13 @@ function getFormValues() {
 }
 
 function setFormValues(values) {
+  resetExtraSpaceRows(values.extraSpaces || [{}]);
+
   Object.entries(values).forEach(([key, value]) => {
+    if (key === "extraSpaces") {
+      return;
+    }
+
     const field = designForm.elements.namedItem(key);
 
     if (field) {
@@ -339,6 +412,46 @@ function parseDimensions(value) {
   }
 
   return { width: 12, length: 14, label: "12 x 14 ft estimate" };
+}
+
+function parseExtraSpaces(spaces) {
+  return spaces
+    .map((space, index) => {
+      const parsed = parseDimensions(space.dimensions || "");
+
+      if (!space.name && !space.dimensions) {
+        return null;
+      }
+
+      return {
+        name: space.name || `Extra space ${index + 1}`,
+        width: parsed.width,
+        length: parsed.length,
+        label: parsed.label,
+        side: space.side || "right"
+      };
+    })
+    .filter(Boolean);
+}
+
+function getRoomShape(formValues, dimensions) {
+  const spaces = parseExtraSpaces(formValues.extraSpaces || []);
+  const doorLocation = formValues.doorLocation || "front";
+  const doorLabel = doorLocation.charAt(0).toUpperCase() + doorLocation.slice(1);
+  const doorNote = formValues.doorNote ? `, ${formValues.doorNote}` : "";
+  const extraLabel = spaces.length
+    ? ` plus ${spaces.map((space) => `${space.name} (${space.label}, ${space.side} side)`).join("; ")}`
+    : "";
+
+  return {
+    main: dimensions,
+    spaces,
+    doorLocation,
+    doorLabel,
+    doorNote: formValues.doorNote || "",
+    label: `${dimensions.label}${extraLabel}`,
+    summary: `${doorLabel} wall door${doorNote}${extraLabel ? `; extra spaces: ${spaces.map((space) => `${space.name} on the ${space.side}`).join(", ")}` : ""}`
+  };
 }
 
 function getBudgetTier(budget) {
@@ -606,17 +719,19 @@ function buildSnapshot(formValues, products) {
   const mustHaves = splitList(formValues.mustHaves);
   const roomLabel = formValues.roomType || "Room";
   const importedCount = products.filter((product) => product.imported).length;
+  const roomShape = getRoomShape(formValues, dimensions);
 
   return {
     formValues,
     products,
     title: `${plan.titleWord} ${roomLabel} Design`,
-    description: `${plan.description} For a ${dimensions.label} space, pick pieces that match the room footprint before buying.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`,
-    layout: `${plan.layout} Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`,
+    description: `${plan.description} For a ${roomShape.label} room, pick pieces that match each zone before buying. Door placement: ${roomShape.summary}.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`,
+    layout: `${plan.layout} Keep the ${roomShape.doorLabel.toLowerCase()} wall door path open${roomShape.spaces.length ? `, then use ${roomShape.spaces[0].name} as a separate zone when possible` : ""}. Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`,
     palette: plan.palette,
     decor: plan.decor,
     checklist: buildChecklist(getBudgetTier(Number(formValues.budget)), mustHaves, products),
     dimensions,
+    roomShape,
     modelView: formValues.modelView
   };
 }
@@ -657,7 +772,7 @@ function renderSnapshot(snapshot) {
 
   showPalette(snapshot.palette, snapshot.formValues.favoriteColors);
   showProducts(snapshot.products);
-  renderRoomPreview(snapshot.modelView, snapshot.dimensions, snapshot.products);
+  renderRoomPreview(snapshot.modelView, snapshot.dimensions, snapshot.products, snapshot.roomShape || getRoomShape(snapshot.formValues, snapshot.dimensions));
   showFurnitureList(snapshot.products);
   addListItems(decorIdeas, snapshot.decor);
   addListItems(shoppingChecklist, snapshot.checklist);
@@ -860,12 +975,12 @@ function showProducts(products) {
   });
 }
 
-function renderFloorPlan(dimensions, products) {
+function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dimensions)) {
   roomPreview.innerHTML = "";
   const plan = document.createElement("div");
   plan.className = "floor-plan";
   plan.setAttribute("role", "img");
-  plan.setAttribute("aria-label", `2D floor plan for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces.`);
+  plan.setAttribute("aria-label", `2D floor plan for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces. ${roomShape.summary}`);
 
   const widthLine = document.createElement("span");
   widthLine.className = "dimension-line width";
@@ -876,6 +991,31 @@ function renderFloorPlan(dimensions, products) {
   lengthLine.textContent = `${dimensions.length} ft`;
 
   plan.append(widthLine, lengthLine);
+
+  const door = document.createElement("span");
+  door.className = `floor-door ${roomShape.doorLocation}`;
+  door.textContent = "Door";
+  door.setAttribute("aria-hidden", "true");
+  plan.appendChild(door);
+
+  roomShape.spaces.slice(0, 4).forEach((space, index) => {
+    const extra = document.createElement("div");
+    const side = space.side || "right";
+    const widthPercent = Math.max(18, Math.min(46, (space.width / dimensions.width) * 42));
+    const heightPercent = Math.max(16, Math.min(48, (space.length / dimensions.length) * 42));
+    extra.className = `floor-extra-space ${side}`;
+    extra.textContent = `${space.name} ${space.label}`;
+    extra.style.width = `${widthPercent}%`;
+    extra.style.height = `${heightPercent}%`;
+
+    if (side === "back" || side === "front") {
+      extra.style.left = `${18 + index * 16}%`;
+    } else {
+      extra.style.top = `${18 + index * 16}%`;
+    }
+
+    plan.appendChild(extra);
+  });
 
   const slots = [
     { left: "8%", bottom: "16%", width: "39%", height: "24%" },
@@ -970,14 +1110,14 @@ function addFurnitureObject(scene, product, item, THREE) {
   scene.add(group);
 }
 
-function render3DModel(dimensions, products) {
+function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimensions)) {
   roomPreview.innerHTML = `<canvas class="model-canvas" aria-label="3D room model"></canvas>`;
   const canvas = roomPreview.querySelector("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `3D room model for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces.`);
+  canvas.setAttribute("aria-label", `3D room model for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces. ${roomShape.summary}`);
 
   if (!window.THREE) {
-    renderFloorPlan(dimensions, products);
+    renderFloorPlan(dimensions, products, roomShape);
     previewCaption.textContent = "The 3D library could not load, so a 2D dimensioned floor plan is shown instead.";
     return;
   }
@@ -1010,6 +1150,28 @@ function render3DModel(dimensions, products) {
   floor.position.y = -0.08;
   scene.add(floor);
 
+  roomShape.spaces.slice(0, 4).forEach((space, index) => {
+    const spaceWidth = Math.min(Math.max(space.width, 3), width * 0.85);
+    const spaceLength = Math.min(Math.max(space.length, 3), length * 0.85);
+    const extraFloor = new THREE.Mesh(
+      new THREE.BoxGeometry(spaceWidth, 0.14, spaceLength),
+      new THREE.MeshStandardMaterial({ color: 0xcfe1d6, roughness: 0.82 })
+    );
+    const offset = (index - 1.5) * 0.9;
+
+    if (space.side === "left") {
+      extraFloor.position.set(-width / 2 - spaceWidth / 2, -0.07, offset);
+    } else if (space.side === "back") {
+      extraFloor.position.set(offset, -0.07, -length / 2 - spaceLength / 2);
+    } else if (space.side === "front") {
+      extraFloor.position.set(offset, -0.07, length / 2 + spaceLength / 2);
+    } else {
+      extraFloor.position.set(width / 2 + spaceWidth / 2, -0.07, offset);
+    }
+
+    scene.add(extraFloor);
+  });
+
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xf7eee3, roughness: 0.9 });
   const backWall = new THREE.Mesh(new THREE.BoxGeometry(width, 3, 0.15), wallMaterial);
   backWall.position.set(0, 1.5, -length / 2);
@@ -1036,17 +1198,17 @@ function render3DModel(dimensions, products) {
   renderer.render(scene, camera);
 }
 
-function renderRoomPreview(modelView, dimensions, products) {
-  roomDimensionsBadge.textContent = dimensions.label;
+function renderRoomPreview(modelView, dimensions, products, roomShape = getRoomShape({}, dimensions)) {
+  roomDimensionsBadge.textContent = roomShape.label;
 
   if (modelView === "3d") {
-    render3DModel(dimensions, products);
-    previewCaption.textContent = `3D model scaled from a ${dimensions.label} room, with core furniture blocked in by footprint.`;
+    render3DModel(dimensions, products, roomShape);
+    previewCaption.textContent = `3D model scaled from a ${roomShape.label} room, with the ${roomShape.doorLabel.toLowerCase()} door and extra spaces blocked in by footprint.`;
     return;
   }
 
-  renderFloorPlan(dimensions, products);
-  previewCaption.textContent = `2D floor plan scaled from a ${dimensions.label} room, with width and length called out for shopping fit checks.`;
+  renderFloorPlan(dimensions, products, roomShape);
+  previewCaption.textContent = `2D floor plan scaled from a ${roomShape.label} room, with door location and separate spaces called out for fit checks.`;
 }
 
 async function generateDesign(event) {
@@ -1100,12 +1262,16 @@ function resetDesign() {
   roomPreview.innerHTML = "";
   roomDimensionsBadge.textContent = "";
   previewCaption.textContent = "";
+  resetExtraSpaceRows();
   renderSavedRooms();
 }
 
 designForm.addEventListener("submit", generateDesign);
 resetButton.addEventListener("click", resetDesign);
 saveButton.addEventListener("click", saveCurrentRoom);
+addSpaceButton.addEventListener("click", () => {
+  extraSpaces.appendChild(createExtraSpaceRow());
+});
 designForm.elements.namedItem("productSource").addEventListener("change", () => {
   setProductSettings({
     productSource: designForm.elements.namedItem("productSource").value,
@@ -1121,5 +1287,6 @@ designForm.elements.namedItem("productApiKey").addEventListener("input", () => {
   updateProductSourceStatus();
 });
 designForm.elements.namedItem("addStoreLinks").addEventListener("change", updateProductSourceStatus);
+resetExtraSpaceRows();
 restoreProductSettings();
 renderSavedRooms();

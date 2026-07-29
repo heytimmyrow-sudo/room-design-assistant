@@ -106,6 +106,66 @@ export default function Home() {
               />
             </label>
 
+            <section className="room-shape-section" aria-labelledby="roomShapeTitle">
+              <div className="room-shape-header">
+                <h3 id="roomShapeTitle">Room Shape</h3>
+                <span>Optional</span>
+              </div>
+              <label htmlFor="doorLocation">
+                Door location
+                <select id="doorLocation" name="doorLocation">
+                  <option value="front">Front wall</option>
+                  <option value="back">Back wall</option>
+                  <option value="left">Left wall</option>
+                  <option value="right">Right wall</option>
+                </select>
+              </label>
+              <label htmlFor="doorNote">
+                Door note
+                <input
+                  type="text"
+                  id="doorNote"
+                  name="doorNote"
+                  placeholder="Example: near left corner, swings inward"
+                />
+              </label>
+              <div className="extra-spaces" id="extraSpaces" aria-label="Extra room spaces">
+                <div className="extra-space-row">
+                  <label>
+                    Extra space name
+                    <input
+                      type="text"
+                      name="extraSpaceName"
+                      placeholder="Nook, closet, alcove..."
+                    />
+                  </label>
+                  <label>
+                    Dimensions
+                    <input
+                      type="text"
+                      name="extraSpaceDimensions"
+                      placeholder="5 x 7 ft"
+                    />
+                  </label>
+                  <label>
+                    Connects to
+                    <select name="extraSpaceSide">
+                      <option value="right">Right side</option>
+                      <option value="left">Left side</option>
+                      <option value="back">Back wall</option>
+                      <option value="front">Front wall</option>
+                    </select>
+                  </label>
+                  <button type="button" className="remove-space-button" aria-label="Remove this extra space">
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <button type="button" className="secondary-button add-space-button" id="addSpaceButton">
+                Add another space
+              </button>
+            </section>
+
             <label htmlFor="modelView">
               Room model
               <select id="modelView" name="modelView">
