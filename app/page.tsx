@@ -133,6 +133,32 @@ export default function Home() {
               ></textarea>
             </label>
 
+            <section className="product-source">
+              <div className="product-source-header">
+                <h3>Product Source</h3>
+                <span id="productSourceStatus">Search links active</span>
+              </div>
+              <label htmlFor="productSource">
+                Exact product matching
+                <select id="productSource" name="productSource">
+                  <option value="search">Amazon search links</option>
+                  <option value="bestbuy">Best Buy exact products</option>
+                </select>
+              </label>
+              <label htmlFor="productApiKey">
+                Product API key
+                <input
+                  type="password"
+                  id="productApiKey"
+                  name="productApiKey"
+                  placeholder="Paste API key for exact products"
+                />
+              </label>
+              <p className="source-note">
+                Without a product API key, generated items use shopping search links.
+              </p>
+            </section>
+
             <div className="button-row">
               <button type="submit" className="primary-button">
                 Generate Design

@@ -17,8 +17,10 @@ const previewCaption = document.querySelector("#previewCaption");
 const saveButton = document.querySelector("#saveButton");
 const savedRoomList = document.querySelector("#savedRoomList");
 const saveStatus = document.querySelector("#saveStatus");
+const productSourceStatus = document.querySelector("#productSourceStatus");
 
 const STORAGE_KEY = "roomDesignAssistant.savedRooms";
+const PRODUCT_SETTINGS_KEY = "roomDesignAssistant.productSettings";
 let activeSaveId = "";
 let currentSnapshot = null;
 
@@ -136,6 +138,41 @@ function setSavedRooms(rooms) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(rooms));
 }
 
+function getProductSettings() {
+  try {
+    return JSON.parse(localStorage.getItem(PRODUCT_SETTINGS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function setProductSettings(settings) {
+  localStorage.setItem(PRODUCT_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function updateProductSourceStatus() {
+  const source = designForm.elements.namedItem("productSource")?.value;
+  const apiKey = designForm.elements.namedItem("productApiKey")?.value.trim();
+
+  productSourceStatus.textContent = source === "bestbuy" && apiKey
+    ? "Exact products active"
+    : "Search links active";
+}
+
+function restoreProductSettings() {
+  const settings = getProductSettings();
+
+  if (settings.productSource) {
+    designForm.elements.namedItem("productSource").value = settings.productSource;
+  }
+
+  if (settings.productApiKey) {
+    designForm.elements.namedItem("productApiKey").value = settings.productApiKey;
+  }
+
+  updateProductSourceStatus();
+}
+
 function createSaveId() {
   if (window.crypto?.randomUUID) {
     return window.crypto.randomUUID();
@@ -156,7 +193,9 @@ function getFormValues() {
     dimensions: formData.get("dimensions").trim(),
     modelView: formData.get("modelView"),
     mustHaves: formData.get("mustHaves").trim(),
-    furnitureLinks: formData.get("furnitureLinks").trim()
+    furnitureLinks: formData.get("furnitureLinks").trim(),
+    productSource: formData.get("productSource"),
+    productApiKey: formData.get("productApiKey").trim()
   };
 }
 
@@ -261,6 +300,29 @@ async function fetchProductPreview(link) {
   }
 }
 
+async function fetchExactProduct(query, productSettings) {
+  if (productSettings.productSource !== "bestbuy" || !productSettings.productApiKey) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      q: query,
+      apiKey: productSettings.productApiKey
+    });
+    const response = await fetch(`/api/product-search?${params.toString()}`);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const product = await response.json();
+    return product.exact ? product : null;
+  } catch {
+    return null;
+  }
+}
+
 function parseDimensions(value) {
   const numbers = value.match(/\d+(\.\d+)?/g)?.map(Number) || [];
 
@@ -339,37 +401,102 @@ async function makeImportedProducts(furnitureLinks) {
   });
 }
 
-async function makeProducts(plan, mustHaves, furnitureLinks) {
-  const products = plan.products.map(([name, description, size, price, color, shape]) => ({
+function makeSearchProduct(name, description, size, price, color, shape, searchQuery = name) {
+  return {
     name,
     description,
     size,
     price,
     color,
     shape,
-    sourceUrl: makeShoppingSearchLink(name),
+    sourceUrl: makeShoppingSearchLink(searchQuery),
     imageUrl: "",
     imported: false,
     store: "Amazon search",
-    searchLink: true
+    searchLink: true,
+    exactGenerated: false
+  };
+}
+
+function makeExactGeneratedProduct(match, fallback, color, shape) {
+  return {
+    name: match.title || fallback.name,
+    description: match.description || "Exact product match from the selected product source.",
+    size: "measure on product page",
+    price: match.price || "price unavailable",
+    color,
+    shape,
+    sourceUrl: match.url || makeShoppingSearchLink(fallback.name),
+    imageUrl: match.image || "",
+    imported: false,
+    store: match.store || "Product source",
+    searchLink: false,
+    exactGenerated: true,
+    previewBlocked: !match.price || !match.image
+  };
+}
+
+async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
+  const generatedBases = plan.products.map(([name, description, size, price, color, shape]) => ({
+    name,
+    description,
+    size,
+    price,
+    color,
+    shape
   }));
+  const exactMatches = await Promise.all(
+    generatedBases.map((product) => fetchExactProduct(product.name, productSettings))
+  );
+  const products = generatedBases.map((product, index) => {
+    const exactMatch = exactMatches[index];
+
+    if (exactMatch) {
+      return makeExactGeneratedProduct(exactMatch, product, product.color, product.shape);
+    }
+
+    return makeSearchProduct(
+      product.name,
+      product.description,
+      product.size,
+      product.price,
+      product.color,
+      product.shape
+    );
+  });
 
   const importedProducts = await makeImportedProducts(furnitureLinks);
 
-  mustHaves.slice(0, 2).forEach((item) => {
-    products.push({
-      name: `Must-Have Pick: ${item}`,
-      description: "Match this item to the chosen style, finish, and available walking space.",
-      size: "verify exact fit",
-      price: "price compare",
-      color: "#8a8f67",
-      shape: "storage",
-      sourceUrl: makeShoppingSearchLink(`${item} furniture`),
-      imageUrl: "",
-      imported: false,
-      store: "Amazon search",
-      searchLink: true
-    });
+  const mustHaveBases = mustHaves.slice(0, 2).map((item) => ({
+    name: `Must-Have Pick: ${item}`,
+    query: `${item} furniture`,
+    description: "Match this item to the chosen style, finish, and available walking space.",
+    size: "verify exact fit",
+    price: "price compare",
+    color: "#8a8f67",
+    shape: "storage"
+  }));
+  const mustHaveMatches = await Promise.all(
+    mustHaveBases.map((product) => fetchExactProduct(product.query, productSettings))
+  );
+
+  mustHaveBases.forEach((product, index) => {
+    const exactMatch = mustHaveMatches[index];
+
+    if (exactMatch) {
+      products.push(makeExactGeneratedProduct(exactMatch, product, product.color, product.shape));
+      return;
+    }
+
+    products.push(makeSearchProduct(
+      product.name,
+      product.description,
+      product.size,
+      product.price,
+      product.color,
+      product.shape,
+      product.query
+    ));
   });
 
   return [...importedProducts, ...products].slice(0, 8);
@@ -401,7 +528,9 @@ function showFurnitureList(products) {
       link.href = product.sourceUrl;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.textContent = product.searchLink
+      link.textContent = product.exactGenerated
+        ? `View exact product at ${product.store}`
+        : product.searchLink
         ? `Shop similar on ${product.store}`
         : `View exact item at ${product.store || getLinkHost(product.sourceUrl)}`;
       li.appendChild(link);
@@ -651,6 +780,13 @@ function showProducts(products) {
       meta.appendChild(imported);
     }
 
+    if (product.exactGenerated) {
+      const exact = document.createElement("span");
+      exact.className = "exact-tag";
+      exact.textContent = product.previewBlocked ? "Exact link" : "Exact product";
+      meta.appendChild(exact);
+    }
+
     body.append(title, description, meta);
 
     if (product.sourceUrl) {
@@ -659,7 +795,9 @@ function showProducts(products) {
       storeLink.href = product.sourceUrl;
       storeLink.target = "_blank";
       storeLink.rel = "noopener noreferrer";
-      storeLink.textContent = product.searchLink
+      storeLink.textContent = product.exactGenerated
+        ? `View exact product at ${product.store}`
+        : product.searchLink
         ? `Shop similar on ${product.store}`
         : `View exact item at ${product.store || getLinkHost(product.sourceUrl)}`;
       body.appendChild(storeLink);
@@ -880,10 +1018,16 @@ async function generateDesign(event) {
 
   try {
   const formValues = getFormValues();
+  const productSettings = {
+    productSource: formValues.productSource,
+    productApiKey: formValues.productApiKey
+  };
+  setProductSettings(productSettings);
+  updateProductSourceStatus();
   const plan = stylePlans[formValues.designStyle];
   const mustHaves = splitList(formValues.mustHaves);
   const furnitureLinks = splitLinks(formValues.furnitureLinks);
-  const products = await makeProducts(plan, mustHaves, furnitureLinks);
+  const products = await makeProducts(plan, mustHaves, furnitureLinks, productSettings);
 
   renderSnapshot(buildSnapshot(formValues, products));
   renderSavedRooms();
@@ -920,4 +1064,19 @@ function resetDesign() {
 designForm.addEventListener("submit", generateDesign);
 resetButton.addEventListener("click", resetDesign);
 saveButton.addEventListener("click", saveCurrentRoom);
+designForm.elements.namedItem("productSource").addEventListener("change", () => {
+  setProductSettings({
+    productSource: designForm.elements.namedItem("productSource").value,
+    productApiKey: designForm.elements.namedItem("productApiKey").value.trim()
+  });
+  updateProductSourceStatus();
+});
+designForm.elements.namedItem("productApiKey").addEventListener("input", () => {
+  setProductSettings({
+    productSource: designForm.elements.namedItem("productSource").value,
+    productApiKey: designForm.elements.namedItem("productApiKey").value.trim()
+  });
+  updateProductSourceStatus();
+});
+restoreProductSettings();
 renderSavedRooms();
