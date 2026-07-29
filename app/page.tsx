@@ -258,6 +258,16 @@ export default function Home() {
               ></textarea>
             </label>
 
+            <label htmlFor="modelLinks">
+              3D model links
+              <textarea
+                id="modelLinks"
+                name="modelLinks"
+                rows={3}
+                placeholder="Paste .glb or .gltf model links, one per line..."
+              ></textarea>
+            </label>
+
             <section className="product-source" aria-labelledby="productSourceTitle">
               <div className="product-source-header">
                 <h3 id="productSourceTitle">Product Source</h3>

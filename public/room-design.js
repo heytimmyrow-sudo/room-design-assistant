@@ -29,6 +29,7 @@ const STORAGE_KEY = "roomDesignAssistant.savedRooms";
 const PRODUCT_SETTINGS_KEY = "roomDesignAssistant.productSettings";
 let activeSaveId = "";
 let currentSnapshot = null;
+let gltfLoaderPromise = null;
 
 const stylePlans = {
   cozy: {
@@ -382,6 +383,7 @@ function getFormValues() {
     modelView: formData.get("modelView"),
     mustHaves: formData.get("mustHaves").trim(),
     furnitureLinks: formData.get("furnitureLinks").trim(),
+    modelLinks: formData.get("modelLinks").trim(),
     productSource: formData.get("productSource"),
     productApiKey: formData.get("productApiKey").trim(),
     addStoreLinks: formData.get("addStoreLinks") === "on"
@@ -421,6 +423,10 @@ function formatSavedDate(value) {
 
 function isImageUrl(url) {
   return /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(url);
+}
+
+function isModelUrl(url) {
+  return /\.(glb|gltf)(\?.*)?$/i.test(url);
 }
 
 function getLinkHost(value) {
@@ -694,7 +700,16 @@ function makeExactGeneratedProduct(match, fallback, color, shape) {
   };
 }
 
-async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
+function attachModelLinks(products, modelLinks) {
+  const validModelLinks = modelLinks.filter(isModelUrl);
+
+  return products.map((product, index) => ({
+    ...product,
+    modelUrl: validModelLinks[index] || product.modelUrl || ""
+  }));
+}
+
+async function makeProducts(plan, mustHaves, furnitureLinks, productSettings, modelLinks = []) {
   const shouldAddLinks = productSettings.addStoreLinks !== false;
   const generatedBases = plan.products.map(([name, description, size, price, color, shape]) => ({
     name,
@@ -763,7 +778,7 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings) {
     products.push(shouldAddLinks ? searchProduct : { ...searchProduct, sourceUrl: "", searchLink: false });
   });
 
-  return [...normalizedImportedProducts, ...products].slice(0, 8);
+  return attachModelLinks([...normalizedImportedProducts, ...products].slice(0, 8), modelLinks);
 }
 
 function addListItems(container, items) {
@@ -1078,6 +1093,13 @@ function showProducts(products) {
       meta.appendChild(exact);
     }
 
+    if (product.modelUrl) {
+      const modelTag = document.createElement("span");
+      modelTag.className = "exact-tag";
+      modelTag.textContent = "3D model";
+      meta.appendChild(modelTag);
+    }
+
     body.append(title, description, meta);
 
     if (product.sourceUrl) {
@@ -1380,7 +1402,75 @@ function addCeilingLightObject(scene, light, width, length, THREE) {
   scene.add(point);
 }
 
-function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimensions), electricalPlan = getElectricalPlan({})) {
+async function getGLTFLoader(THREE) {
+  if (!gltfLoaderPromise) {
+    gltfLoaderPromise = import("https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js?deps=three@0.160.0")
+      .then((module) => new module.GLTFLoader())
+      .catch(() => null);
+  }
+
+  return gltfLoaderPromise;
+}
+
+function normalizeModelToFootprint(object, item, THREE) {
+  const box = new THREE.Box3().setFromObject(object);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+
+  if (!size.x || !size.y || !size.z) {
+    return;
+  }
+
+  const scale = Math.min(
+    item.size[0] / size.x,
+    Math.max(item.size[1], 0.35) / size.y,
+    item.size[2] / size.z
+  );
+  object.scale.multiplyScalar(scale);
+
+  const scaledBox = new THREE.Box3().setFromObject(object);
+  const center = new THREE.Vector3();
+  scaledBox.getCenter(center);
+  object.position.sub(center);
+  object.position.y -= scaledBox.min.y - center.y;
+}
+
+async function addRealModelObject(scene, product, item, THREE, renderer, camera) {
+  if (!product.modelUrl || !isModelUrl(product.modelUrl)) {
+    return false;
+  }
+
+  const loader = await getGLTFLoader(THREE);
+
+  if (!loader) {
+    return false;
+  }
+
+  return new Promise((resolve) => {
+    loader.load(
+      product.modelUrl,
+      (gltf) => {
+        const object = gltf.scene;
+        normalizeModelToFootprint(object, item, THREE);
+        object.position.x += item.pos[0];
+        object.position.z += item.pos[2];
+        object.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        scene.add(object);
+        renderer.render(scene, camera);
+        resolve(true);
+      },
+      undefined,
+      () => resolve(false)
+    );
+  });
+}
+
+function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimensions), electricalPlan = getElectricalPlan({}), baseCaption = "") {
   roomPreview.innerHTML = `<canvas class="model-canvas" aria-label="3D room model"></canvas>`;
   const canvas = roomPreview.querySelector("canvas");
   canvas.setAttribute("role", "img");
@@ -1480,8 +1570,37 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
     { size: [width * 0.2, 0.44, length * 0.16], pos: [width * 0.28, 0.27, length * 0.34] }
   ];
 
+  let loadedModelCount = 0;
+  let failedModelCount = 0;
+  const updateModelCaption = () => {
+    if (!baseCaption) {
+      return;
+    }
+
+    const modelNote = loadedModelCount
+      ? ` ${loadedModelCount} real 3D model${loadedModelCount === 1 ? "" : "s"} loaded.`
+      : failedModelCount
+      ? " Model link could not be loaded, so the fallback furniture shape is shown."
+      : "";
+    previewCaption.textContent = `${baseCaption}${modelNote}`;
+  };
+
   products.slice(0, itemData.length).forEach((product, index) => {
     const item = itemData[index];
+    if (product.modelUrl) {
+      addRealModelObject(scene, product, item, THREE, renderer, camera).then((loaded) => {
+        if (loaded) {
+          loadedModelCount += 1;
+        } else {
+          failedModelCount += 1;
+          addFurnitureObject(scene, product, item, THREE);
+          renderer.render(scene, camera);
+        }
+        updateModelCaption();
+      });
+      return;
+    }
+
     addFurnitureObject(scene, product, item, THREE);
   });
 
@@ -1500,8 +1619,9 @@ function renderRoomPreview(modelView, dimensions, products, roomShape = getRoomS
   roomDimensionsBadge.textContent = roomShape.label;
 
   if (modelView === "3d") {
-    render3DModel(dimensions, products, roomShape, electricalPlan);
-    previewCaption.textContent = `3D model scaled from a ${roomShape.label} room, with the ${roomShape.doorLabel.toLowerCase()} door, outlets, ceiling lights, and extra spaces blocked in by footprint.`;
+    const captionText = `3D model scaled from a ${roomShape.label} room, with the ${roomShape.doorLabel.toLowerCase()} door, outlets, ceiling lights, and extra spaces blocked in by footprint.`;
+    previewCaption.textContent = captionText;
+    render3DModel(dimensions, products, roomShape, electricalPlan, captionText);
     return;
   }
 
@@ -1529,7 +1649,8 @@ async function generateDesign(event) {
   const plan = stylePlans[formValues.designStyle];
   const mustHaves = splitList(formValues.mustHaves);
   const furnitureLinks = splitLinks(formValues.furnitureLinks);
-  const products = await makeProducts(plan, mustHaves, furnitureLinks, productSettings);
+  const modelLinks = splitLinks(formValues.modelLinks).filter(isModelUrl);
+  const products = await makeProducts(plan, mustHaves, furnitureLinks, productSettings, modelLinks);
 
   renderSnapshot(buildSnapshot(formValues, products));
   renderSavedRooms();
