@@ -394,7 +394,8 @@ button:disabled {
   padding: 14px;
 }
 
-.room-shape-section {
+.room-shape-section,
+.electrical-section {
   display: grid;
   gap: 12px;
   border: 1px solid #e2d6c9;
@@ -427,7 +428,8 @@ button:disabled {
   gap: 12px;
 }
 
-.extra-space-row {
+.extra-space-row,
+.fixture-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
   gap: 10px;
@@ -437,7 +439,14 @@ button:disabled {
   padding: 12px;
 }
 
+.fixture-list {
+  display: grid;
+  gap: 12px;
+}
+
 .extra-space-row label,
+.fixture-row label,
+.fixture-row .remove-space-button,
 .extra-space-row .remove-space-button {
   min-width: 0;
 }
@@ -819,6 +828,118 @@ li + li {
   transform: rotate(-90deg);
 }
 
+.floor-outlet,
+.floor-ceiling-light {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 2px solid #232a34;
+  background: #ffffff;
+  color: #232a34;
+  font-size: 0.62rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.floor-outlet {
+  width: 24px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.floor-outlet::before {
+  content: "||";
+  letter-spacing: 1px;
+}
+
+.floor-ceiling-light {
+  width: 30px;
+  height: 30px;
+  border-color: var(--gold);
+  border-radius: 50%;
+  background: #fff3c7;
+  box-shadow: 0 0 0 6px rgba(200, 148, 63, 0.12);
+}
+
+.floor-ceiling-light::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.floor-outlet.front {
+  bottom: 5px;
+}
+
+.floor-outlet.back {
+  top: 5px;
+}
+
+.floor-outlet.left {
+  left: 5px;
+}
+
+.floor-outlet.right {
+  right: 5px;
+}
+
+.floor-outlet.front.left-pos,
+.floor-outlet.back.left-pos {
+  left: 20%;
+}
+
+.floor-outlet.front.center-pos,
+.floor-outlet.back.center-pos {
+  left: calc(50% - 12px);
+}
+
+.floor-outlet.front.right-pos,
+.floor-outlet.back.right-pos {
+  right: 20%;
+}
+
+.floor-outlet.left.left-pos,
+.floor-outlet.right.left-pos {
+  top: 20%;
+}
+
+.floor-outlet.left.center-pos,
+.floor-outlet.right.center-pos {
+  top: calc(50% - 8px);
+}
+
+.floor-outlet.left.right-pos,
+.floor-outlet.right.right-pos {
+  bottom: 20%;
+}
+
+.floor-ceiling-light.center {
+  left: calc(50% - 15px);
+  top: calc(50% - 15px);
+}
+
+.floor-ceiling-light.front {
+  left: calc(50% - 15px);
+  top: 18%;
+}
+
+.floor-ceiling-light.back {
+  left: calc(50% - 15px);
+  bottom: 18%;
+}
+
+.floor-ceiling-light.left {
+  left: 24%;
+  top: calc(50% - 15px);
+}
+
+.floor-ceiling-light.right {
+  right: 24%;
+  top: calc(50% - 15px);
+}
+
 .preview-caption {
   margin: 12px 0 0;
   color: var(--muted);
@@ -1061,7 +1182,8 @@ li + li {
     grid-template-columns: 1fr;
   }
 
-  .extra-space-row {
+  .extra-space-row,
+  .fixture-row {
     grid-template-columns: 1fr;
   }
 

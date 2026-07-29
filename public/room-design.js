@@ -20,6 +20,10 @@ const saveStatus = document.querySelector("#saveStatus");
 const productSourceStatus = document.querySelector("#productSourceStatus");
 const extraSpaces = document.querySelector("#extraSpaces");
 const addSpaceButton = document.querySelector("#addSpaceButton");
+const outletList = document.querySelector("#outletList");
+const addOutletButton = document.querySelector("#addOutletButton");
+const ceilingLightList = document.querySelector("#ceilingLightList");
+const addCeilingLightButton = document.querySelector("#addCeilingLightButton");
 
 const STORAGE_KEY = "roomDesignAssistant.savedRooms";
 const PRODUCT_SETTINGS_KEY = "roomDesignAssistant.productSettings";
@@ -234,6 +238,98 @@ function resetExtraSpaceRows(spaces = [{}]) {
   rows.forEach((space) => extraSpaces.appendChild(createExtraSpaceRow(space)));
 }
 
+function createOutletRow(outlet = {}) {
+  const row = document.createElement("div");
+  row.className = "fixture-row outlet-row";
+  row.innerHTML = `
+    <label>
+      Outlet wall
+      <select name="outletWall">
+        <option value="front">Front wall</option>
+        <option value="back">Back wall</option>
+        <option value="left">Left wall</option>
+        <option value="right">Right wall</option>
+      </select>
+    </label>
+    <label>
+      Position
+      <select name="outletPosition">
+        <option value="center">Center</option>
+        <option value="left">Left side</option>
+        <option value="right">Right side</option>
+      </select>
+    </label>
+    <button type="button" class="remove-space-button" aria-label="Remove this outlet">Remove</button>
+  `;
+
+  row.querySelector('[name="outletWall"]').value = outlet.wall || "front";
+  row.querySelector('[name="outletPosition"]').value = outlet.position || "center";
+  row.querySelector(".remove-space-button").addEventListener("click", () => {
+    if (outletList.children.length > 1) {
+      row.remove();
+      return;
+    }
+
+    row.querySelector('[name="outletWall"]').value = "front";
+    row.querySelector('[name="outletPosition"]').value = "center";
+  });
+
+  return row;
+}
+
+function createCeilingLightRow(light = {}) {
+  const row = document.createElement("div");
+  row.className = "fixture-row light-row";
+  row.innerHTML = `
+    <label>
+      Ceiling light type
+      <select name="ceilingLightType">
+        <option value="flush">Flush mount</option>
+        <option value="recessed">Recessed light</option>
+        <option value="pendant">Pendant light</option>
+        <option value="track">Track light</option>
+      </select>
+    </label>
+    <label>
+      Position
+      <select name="ceilingLightPosition">
+        <option value="center">Center</option>
+        <option value="front">Front zone</option>
+        <option value="back">Back zone</option>
+        <option value="left">Left zone</option>
+        <option value="right">Right zone</option>
+      </select>
+    </label>
+    <button type="button" class="remove-space-button" aria-label="Remove this ceiling light">Remove</button>
+  `;
+
+  row.querySelector('[name="ceilingLightType"]').value = light.type || "flush";
+  row.querySelector('[name="ceilingLightPosition"]').value = light.position || "center";
+  row.querySelector(".remove-space-button").addEventListener("click", () => {
+    if (ceilingLightList.children.length > 1) {
+      row.remove();
+      return;
+    }
+
+    row.querySelector('[name="ceilingLightType"]').value = "flush";
+    row.querySelector('[name="ceilingLightPosition"]').value = "center";
+  });
+
+  return row;
+}
+
+function resetOutletRows(outlets = [{}]) {
+  outletList.innerHTML = "";
+  const rows = outlets.length ? outlets : [{}];
+  rows.forEach((outlet) => outletList.appendChild(createOutletRow(outlet)));
+}
+
+function resetCeilingLightRows(lights = [{}]) {
+  ceilingLightList.innerHTML = "";
+  const rows = lights.length ? lights : [{}];
+  rows.forEach((light) => ceilingLightList.appendChild(createCeilingLightRow(light)));
+}
+
 function getExtraSpaceValues(formData) {
   const names = formData.getAll("extraSpaceName");
   const dimensions = formData.getAll("extraSpaceDimensions");
@@ -246,6 +342,26 @@ function getExtraSpaceValues(formData) {
       side: String(sides[index] || "right")
     }))
     .filter((space) => space.name || space.dimensions);
+}
+
+function getOutletValues(formData) {
+  const walls = formData.getAll("outletWall");
+  const positions = formData.getAll("outletPosition");
+
+  return walls.map((wall, index) => ({
+    wall: String(wall || "front"),
+    position: String(positions[index] || "center")
+  }));
+}
+
+function getCeilingLightValues(formData) {
+  const types = formData.getAll("ceilingLightType");
+  const positions = formData.getAll("ceilingLightPosition");
+
+  return types.map((type, index) => ({
+    type: String(type || "flush"),
+    position: String(positions[index] || "center")
+  }));
 }
 
 function getFormValues() {
@@ -261,6 +377,8 @@ function getFormValues() {
     doorLocation: formData.get("doorLocation") || "front",
     doorNote: formData.get("doorNote").trim(),
     extraSpaces: getExtraSpaceValues(formData),
+    outlets: getOutletValues(formData),
+    ceilingLights: getCeilingLightValues(formData),
     modelView: formData.get("modelView"),
     mustHaves: formData.get("mustHaves").trim(),
     furnitureLinks: formData.get("furnitureLinks").trim(),
@@ -272,9 +390,11 @@ function getFormValues() {
 
 function setFormValues(values) {
   resetExtraSpaceRows(values.extraSpaces || [{}]);
+  resetOutletRows(values.outlets || [{}]);
+  resetCeilingLightRows(values.ceilingLights || [{}]);
 
   Object.entries(values).forEach(([key, value]) => {
-    if (key === "extraSpaces") {
+    if (key === "extraSpaces" || key === "outlets" || key === "ceilingLights") {
       return;
     }
 
@@ -451,6 +571,23 @@ function getRoomShape(formValues, dimensions) {
     doorNote: formValues.doorNote || "",
     label: `${dimensions.label}${extraLabel}`,
     summary: `${doorLabel} wall door${doorNote}${extraLabel ? `; extra spaces: ${spaces.map((space) => `${space.name} on the ${space.side}`).join(", ")}` : ""}`
+  };
+}
+
+function getElectricalPlan(formValues) {
+  const outlets = (formValues.outlets || []).filter(Boolean);
+  const ceilingLights = (formValues.ceilingLights || []).filter(Boolean);
+  const outletSummary = outlets.length
+    ? `${outlets.length} outlet${outlets.length === 1 ? "" : "s"} (${outlets.map((outlet) => `${outlet.wall} wall, ${outlet.position}`).join("; ")})`
+    : "no outlets marked";
+  const lightSummary = ceilingLights.length
+    ? `${ceilingLights.length} ceiling light${ceilingLights.length === 1 ? "" : "s"} (${ceilingLights.map((light) => `${light.type} at ${light.position}`).join("; ")})`
+    : "no ceiling lights marked";
+
+  return {
+    outlets,
+    ceilingLights,
+    summary: `${outletSummary}; ${lightSummary}`
   };
 }
 
@@ -720,18 +857,20 @@ function buildSnapshot(formValues, products) {
   const roomLabel = formValues.roomType || "Room";
   const importedCount = products.filter((product) => product.imported).length;
   const roomShape = getRoomShape(formValues, dimensions);
+  const electricalPlan = getElectricalPlan(formValues);
 
   return {
     formValues,
     products,
     title: `${plan.titleWord} ${roomLabel} Design`,
-    description: `${plan.description} For a ${roomShape.label} room, pick pieces that match each zone before buying. Door placement: ${roomShape.summary}.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`,
-    layout: `${plan.layout} Keep the ${roomShape.doorLabel.toLowerCase()} wall door path open${roomShape.spaces.length ? `, then use ${roomShape.spaces[0].name} as a separate zone when possible` : ""}. Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`,
+    description: `${plan.description} For a ${roomShape.label} room, pick pieces that match each zone before buying. Door placement: ${roomShape.summary}. Electrical plan: ${electricalPlan.summary}.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`,
+    layout: `${plan.layout} Keep the ${roomShape.doorLabel.toLowerCase()} wall door path open${roomShape.spaces.length ? `, then use ${roomShape.spaces[0].name} as a separate zone when possible` : ""}. Keep desks, lamps, media consoles, and gaming gear near marked outlets. Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`,
     palette: plan.palette,
     decor: plan.decor,
     checklist: buildChecklist(getBudgetTier(Number(formValues.budget)), mustHaves, products),
     dimensions,
     roomShape,
+    electricalPlan,
     modelView: formValues.modelView
   };
 }
@@ -772,7 +911,13 @@ function renderSnapshot(snapshot) {
 
   showPalette(snapshot.palette, snapshot.formValues.favoriteColors);
   showProducts(snapshot.products);
-  renderRoomPreview(snapshot.modelView, snapshot.dimensions, snapshot.products, snapshot.roomShape || getRoomShape(snapshot.formValues, snapshot.dimensions));
+  renderRoomPreview(
+    snapshot.modelView,
+    snapshot.dimensions,
+    snapshot.products,
+    snapshot.roomShape || getRoomShape(snapshot.formValues, snapshot.dimensions),
+    snapshot.electricalPlan || getElectricalPlan(snapshot.formValues)
+  );
   showFurnitureList(snapshot.products);
   addListItems(decorIdeas, snapshot.decor);
   addListItems(shoppingChecklist, snapshot.checklist);
@@ -975,12 +1120,16 @@ function showProducts(products) {
   });
 }
 
-function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dimensions)) {
+function getWallPositionClass(position) {
+  return position === "left" ? "left-pos" : position === "right" ? "right-pos" : "center-pos";
+}
+
+function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dimensions), electricalPlan = getElectricalPlan({})) {
   roomPreview.innerHTML = "";
   const plan = document.createElement("div");
   plan.className = "floor-plan";
   plan.setAttribute("role", "img");
-  plan.setAttribute("aria-label", `2D floor plan for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces. ${roomShape.summary}`);
+  plan.setAttribute("aria-label", `2D floor plan for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces. ${roomShape.summary}. ${electricalPlan.summary}`);
 
   const widthLine = document.createElement("span");
   widthLine.className = "dimension-line width";
@@ -1015,6 +1164,21 @@ function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dime
     }
 
     plan.appendChild(extra);
+  });
+
+  electricalPlan.outlets.slice(0, 8).forEach((outlet) => {
+    const marker = document.createElement("span");
+    marker.className = `floor-outlet ${outlet.wall} ${getWallPositionClass(outlet.position)}`;
+    marker.setAttribute("aria-hidden", "true");
+    plan.appendChild(marker);
+  });
+
+  electricalPlan.ceilingLights.slice(0, 6).forEach((light) => {
+    const marker = document.createElement("span");
+    marker.className = `floor-ceiling-light ${light.position}`;
+    marker.title = light.type;
+    marker.setAttribute("aria-hidden", "true");
+    plan.appendChild(marker);
   });
 
   const slots = [
@@ -1062,12 +1226,15 @@ function addFurnitureObject(scene, product, item, THREE) {
     const back = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.9, item.size[2] * 0.18), material);
     const leftArm = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.08, item.size[1] * 0.72, item.size[2]), material);
     const rightArm = leftArm.clone();
+    const cushionMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(product.color).offsetHSL(0, 0, 0.12), roughness: 0.74 });
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.82, item.size[1] * 0.16, item.size[2] * 0.72), cushionMaterial);
 
     base.position.y = item.size[1] * 0.18;
     back.position.set(0, item.size[1] * 0.48, -item.size[2] * 0.42);
     leftArm.position.set(-item.size[0] * 0.46, item.size[1] * 0.34, 0);
     rightArm.position.set(item.size[0] * 0.46, item.size[1] * 0.34, 0);
-    group.add(base, back, leftArm, rightArm);
+    cushion.position.y = item.size[1] * 0.48;
+    group.add(base, back, leftArm, rightArm, cushion);
   } else if (product.shape === "table") {
     const top = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.18, item.size[2]), material);
     top.position.y = item.size[1] * 0.76;
@@ -1093,9 +1260,11 @@ function addFurnitureObject(scene, product, item, THREE) {
   } else {
     const cabinet = new THREE.Mesh(new THREE.BoxGeometry(...item.size), material);
     const doorLine = new THREE.Mesh(new THREE.BoxGeometry(0.025, item.size[1] * 0.84, item.size[2] * 1.02), darkMaterial);
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, item.size[1] * 0.16, 0.08), darkMaterial);
     cabinet.position.y = item.size[1] * 0.5;
     doorLine.position.y = item.size[1] * 0.5;
-    group.add(cabinet, doorLine);
+    handle.position.set(item.size[0] * 0.18, item.size[1] * 0.55, item.size[2] * 0.52);
+    group.add(cabinet, doorLine, handle);
   }
 
   if (product.imported) {
@@ -1110,14 +1279,115 @@ function addFurnitureObject(scene, product, item, THREE) {
   scene.add(group);
 }
 
-function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimensions)) {
+function getWallOffset(position, size) {
+  if (position === "left") {
+    return -size * 0.26;
+  }
+
+  if (position === "right") {
+    return size * 0.26;
+  }
+
+  return 0;
+}
+
+function getFixtureCoordinates(wall, position, width, length) {
+  const xOffset = getWallOffset(position, width);
+  const zOffset = getWallOffset(position, length);
+
+  if (wall === "back") {
+    return { x: xOffset, z: -length / 2 - 0.08, rotation: 0 };
+  }
+
+  if (wall === "left") {
+    return { x: -width / 2 - 0.08, z: zOffset, rotation: Math.PI / 2 };
+  }
+
+  if (wall === "right") {
+    return { x: width / 2 + 0.08, z: zOffset, rotation: Math.PI / 2 };
+  }
+
+  return { x: xOffset, z: length / 2 + 0.08, rotation: 0 };
+}
+
+function getCeilingLightCoordinates(position, width, length) {
+  const positions = {
+    front: [0, length * 0.24],
+    back: [0, -length * 0.24],
+    left: [-width * 0.24, 0],
+    right: [width * 0.24, 0],
+    center: [0, 0]
+  };
+
+  const [x, z] = positions[position] || positions.center;
+  return { x, z };
+}
+
+function addOutletObject(scene, outlet, width, length, THREE) {
+  const coords = getFixtureCoordinates(outlet.wall, outlet.position, width, length);
+  const plate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.36, 0.26, 0.035),
+    new THREE.MeshStandardMaterial({ color: 0xfdfaf2, roughness: 0.45 })
+  );
+  const slotMaterial = new THREE.MeshStandardMaterial({ color: 0x232a34, roughness: 0.5 });
+  const slotA = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.04), slotMaterial);
+  const slotB = slotA.clone();
+
+  plate.position.set(coords.x, 0.62, coords.z);
+  plate.rotation.y = coords.rotation;
+  slotA.position.set(coords.x - (outlet.wall === "left" || outlet.wall === "right" ? 0 : 0.055), 0.62, coords.z);
+  slotB.position.set(coords.x + (outlet.wall === "left" || outlet.wall === "right" ? 0 : 0.055), 0.62, coords.z);
+  slotA.rotation.y = coords.rotation;
+  slotB.rotation.y = coords.rotation;
+  scene.add(plate, slotA, slotB);
+}
+
+function addCeilingLightObject(scene, light, width, length, THREE) {
+  const coords = getCeilingLightCoordinates(light.position, width, length);
+  const fixtureMaterial = new THREE.MeshStandardMaterial({
+    color: light.type === "recessed" ? 0xf8f2de : 0xd4b16a,
+    emissive: 0xffe49a,
+    emissiveIntensity: 0.18,
+    roughness: 0.35
+  });
+  const fixture = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.12, 32), fixtureMaterial);
+  fixture.position.set(coords.x, 2.88, coords.z);
+  fixture.rotation.x = Math.PI / 2;
+  scene.add(fixture);
+
+  if (light.type === "pendant") {
+    const cord = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.02, 0.02, 0.65, 12),
+      new THREE.MeshStandardMaterial({ color: 0x3e342d, roughness: 0.5 })
+    );
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.48, 0.28, 28), fixtureMaterial);
+    cord.position.set(coords.x, 2.48, coords.z);
+    shade.position.set(coords.x, 2.08, coords.z);
+    scene.add(cord, shade);
+  }
+
+  if (light.type === "track") {
+    const rail = new THREE.Mesh(
+      new THREE.BoxGeometry(1.4, 0.08, 0.08),
+      new THREE.MeshStandardMaterial({ color: 0x232a34, roughness: 0.42 })
+    );
+    rail.position.set(coords.x, 2.82, coords.z);
+    scene.add(rail);
+  }
+
+  const point = new THREE.PointLight(0xffedc0, 0.45, Math.max(width, length) * 0.9);
+  point.position.set(coords.x, 2.3, coords.z);
+  scene.add(point);
+}
+
+function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimensions), electricalPlan = getElectricalPlan({})) {
   roomPreview.innerHTML = `<canvas class="model-canvas" aria-label="3D room model"></canvas>`;
   const canvas = roomPreview.querySelector("canvas");
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", `3D room model for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces. ${roomShape.summary}`);
+  canvas.setAttribute("aria-label", `3D room model for a ${dimensions.width} by ${dimensions.length} foot room with ${products.length} furniture pieces. ${roomShape.summary}. ${electricalPlan.summary}`);
 
   if (!window.THREE) {
-    renderFloorPlan(dimensions, products, roomShape);
+    renderFloorPlan(dimensions, products, roomShape, electricalPlan);
     previewCaption.textContent = "The 3D library could not load, so a 2D dimensioned floor plan is shown instead.";
     return;
   }
@@ -1138,7 +1408,7 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(renderWidth, renderHeight, false);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.58));
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(4, 8, 6);
   scene.add(light);
@@ -1173,13 +1443,33 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   });
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0xf7eee3, roughness: 0.9 });
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(width, 3, 0.15), wallMaterial);
-  backWall.position.set(0, 1.5, -length / 2);
-  scene.add(backWall);
+  const openWallMaterial = new THREE.MeshStandardMaterial({ color: 0xf7eee3, roughness: 0.9, transparent: true, opacity: 0.72 });
+  const wallSpecs = [
+    { name: "back", size: [width, 3, 0.15], pos: [0, 1.5, -length / 2], material: wallMaterial },
+    { name: "front", size: [width, 3, 0.15], pos: [0, 1.5, length / 2], material: openWallMaterial },
+    { name: "left", size: [0.15, 3, length], pos: [-width / 2, 1.5, 0], material: wallMaterial },
+    { name: "right", size: [0.15, 3, length], pos: [width / 2, 1.5, 0], material: openWallMaterial }
+  ];
+  wallSpecs.forEach((wall) => {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...wall.size), wall.material);
+    mesh.position.set(...wall.pos);
+    scene.add(mesh);
+  });
 
-  const sideWall = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3, length), wallMaterial);
-  sideWall.position.set(-width / 2, 1.5, 0);
-  scene.add(sideWall);
+  const ceiling = new THREE.Mesh(
+    new THREE.BoxGeometry(width, 0.08, length),
+    new THREE.MeshStandardMaterial({ color: 0xfff8ed, roughness: 0.88, transparent: true, opacity: 0.58 })
+  );
+  ceiling.position.y = 3;
+  scene.add(ceiling);
+
+  const doorCoords = getFixtureCoordinates(roomShape.doorLocation, "center", width, length);
+  const doorMarker = new THREE.Mesh(
+    new THREE.BoxGeometry(roomShape.doorLocation === "left" || roomShape.doorLocation === "right" ? 0.08 : 1.05, 2.05, roomShape.doorLocation === "left" || roomShape.doorLocation === "right" ? 1.05 : 0.08),
+    new THREE.MeshStandardMaterial({ color: 0x9b7655, roughness: 0.7 })
+  );
+  doorMarker.position.set(doorCoords.x, 1.02, doorCoords.z);
+  scene.add(doorMarker);
 
   const itemData = [
     { size: [width * 0.38, 0.62, length * 0.18], pos: [-width * 0.18, 0.35, length * 0.26] },
@@ -1195,20 +1485,28 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
     addFurnitureObject(scene, product, item, THREE);
   });
 
+  electricalPlan.outlets.slice(0, 8).forEach((outlet) => {
+    addOutletObject(scene, outlet, width, length, THREE);
+  });
+
+  electricalPlan.ceilingLights.slice(0, 6).forEach((ceilingLight) => {
+    addCeilingLightObject(scene, ceilingLight, width, length, THREE);
+  });
+
   renderer.render(scene, camera);
 }
 
-function renderRoomPreview(modelView, dimensions, products, roomShape = getRoomShape({}, dimensions)) {
+function renderRoomPreview(modelView, dimensions, products, roomShape = getRoomShape({}, dimensions), electricalPlan = getElectricalPlan({})) {
   roomDimensionsBadge.textContent = roomShape.label;
 
   if (modelView === "3d") {
-    render3DModel(dimensions, products, roomShape);
-    previewCaption.textContent = `3D model scaled from a ${roomShape.label} room, with the ${roomShape.doorLabel.toLowerCase()} door and extra spaces blocked in by footprint.`;
+    render3DModel(dimensions, products, roomShape, electricalPlan);
+    previewCaption.textContent = `3D model scaled from a ${roomShape.label} room, with the ${roomShape.doorLabel.toLowerCase()} door, outlets, ceiling lights, and extra spaces blocked in by footprint.`;
     return;
   }
 
-  renderFloorPlan(dimensions, products, roomShape);
-  previewCaption.textContent = `2D floor plan scaled from a ${roomShape.label} room, with door location and separate spaces called out for fit checks.`;
+  renderFloorPlan(dimensions, products, roomShape, electricalPlan);
+  previewCaption.textContent = `2D floor plan scaled from a ${roomShape.label} room, with door location, outlets, ceiling lights, and separate spaces called out for fit checks.`;
 }
 
 async function generateDesign(event) {
@@ -1263,6 +1561,8 @@ function resetDesign() {
   roomDimensionsBadge.textContent = "";
   previewCaption.textContent = "";
   resetExtraSpaceRows();
+  resetOutletRows();
+  resetCeilingLightRows();
   renderSavedRooms();
 }
 
@@ -1271,6 +1571,12 @@ resetButton.addEventListener("click", resetDesign);
 saveButton.addEventListener("click", saveCurrentRoom);
 addSpaceButton.addEventListener("click", () => {
   extraSpaces.appendChild(createExtraSpaceRow());
+});
+addOutletButton.addEventListener("click", () => {
+  outletList.appendChild(createOutletRow());
+});
+addCeilingLightButton.addEventListener("click", () => {
+  ceilingLightList.appendChild(createCeilingLightRow());
 });
 designForm.elements.namedItem("productSource").addEventListener("change", () => {
   setProductSettings({
@@ -1288,5 +1594,7 @@ designForm.elements.namedItem("productApiKey").addEventListener("input", () => {
 });
 designForm.elements.namedItem("addStoreLinks").addEventListener("change", updateProductSourceStatus);
 resetExtraSpaceRows();
+resetOutletRows();
+resetCeilingLightRows();
 restoreProductSettings();
 renderSavedRooms();

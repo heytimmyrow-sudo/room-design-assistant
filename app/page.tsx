@@ -166,6 +166,70 @@ export default function Home() {
               </button>
             </section>
 
+            <section className="electrical-section" aria-labelledby="electricalTitle">
+              <div className="room-shape-header">
+                <h3 id="electricalTitle">Electrical</h3>
+                <span>Optional</span>
+              </div>
+              <div className="fixture-list" id="outletList" aria-label="Electrical outlets">
+                <div className="fixture-row outlet-row">
+                  <label>
+                    Outlet wall
+                    <select name="outletWall">
+                      <option value="front">Front wall</option>
+                      <option value="back">Back wall</option>
+                      <option value="left">Left wall</option>
+                      <option value="right">Right wall</option>
+                    </select>
+                  </label>
+                  <label>
+                    Position
+                    <select name="outletPosition">
+                      <option value="center">Center</option>
+                      <option value="left">Left side</option>
+                      <option value="right">Right side</option>
+                    </select>
+                  </label>
+                  <button type="button" className="remove-space-button" aria-label="Remove this outlet">
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <button type="button" className="secondary-button add-space-button" id="addOutletButton">
+                Add outlet
+              </button>
+
+              <div className="fixture-list" id="ceilingLightList" aria-label="Ceiling lights">
+                <div className="fixture-row light-row">
+                  <label>
+                    Ceiling light type
+                    <select name="ceilingLightType">
+                      <option value="flush">Flush mount</option>
+                      <option value="recessed">Recessed light</option>
+                      <option value="pendant">Pendant light</option>
+                      <option value="track">Track light</option>
+                    </select>
+                  </label>
+                  <label>
+                    Position
+                    <select name="ceilingLightPosition">
+                      <option value="center">Center</option>
+                      <option value="front">Front zone</option>
+                      <option value="back">Back zone</option>
+                      <option value="left">Left zone</option>
+                      <option value="right">Right zone</option>
+                    </select>
+                  </label>
+                  <button type="button" className="remove-space-button" aria-label="Remove this ceiling light">
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <button type="button" className="secondary-button add-space-button" id="addCeilingLightButton">
+                Add ceiling light
+              </button>
+            </section>
+
             <label htmlFor="modelView">
               Room model
               <select id="modelView" name="modelView">
