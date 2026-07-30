@@ -15,6 +15,17 @@ const suggestedAddOns = document.querySelector("#suggestedAddOns");
 const roomPreview = document.querySelector("#roomPreview");
 const roomDimensionsBadge = document.querySelector("#roomDimensionsBadge");
 const previewCaption = document.querySelector("#previewCaption");
+const selectedFurniture = document.querySelector("#selectedFurniture");
+const rotateLeftButton = document.querySelector("#rotateLeftButton");
+const rotateRightButton = document.querySelector("#rotateRightButton");
+const shrinkButton = document.querySelector("#shrinkButton");
+const growButton = document.querySelector("#growButton");
+const budgetTracker = document.querySelector("#budgetTracker");
+const fitWarnings = document.querySelector("#fitWarnings");
+const moodBoard = document.querySelector("#moodBoard");
+const styleNotes = document.querySelector("#styleNotes");
+const downloadImageButton = document.querySelector("#downloadImageButton");
+const downloadPdfButton = document.querySelector("#downloadPdfButton");
 const saveButton = document.querySelector("#saveButton");
 const savedRoomList = document.querySelector("#savedRoomList");
 const saveStatus = document.querySelector("#saveStatus");
@@ -34,6 +45,49 @@ let activeSaveId = "";
 let currentSnapshot = null;
 let gltfLoaderPromise = null;
 const MAX_MODEL_PRODUCTS = 8;
+
+const roomTemplates = {
+  "small-bedroom": {
+    roomType: "bedroom",
+    designStyle: "minimalist",
+    dimensions: "10 x 11 ft",
+    mustHaves: "full bed, nightstand, dresser",
+    windowPlan: "back center",
+    wallPlan: "closet wall along the right side"
+  },
+  "gaming-setup": {
+    roomType: "gaming room",
+    designStyle: "gaming",
+    dimensions: "11 x 13 ft",
+    mustHaves: "gaming desk, ergonomic chair, display shelves",
+    windowPlan: "left wall",
+    wallPlan: "screen wall should avoid window glare"
+  },
+  "studio-apartment": {
+    roomType: "studio apartment",
+    designStyle: "modern",
+    dimensions: "14 x 18 ft",
+    mustHaves: "sofa bed, media console, dining table",
+    windowPlan: "back wall, right wall",
+    wallPlan: "open sleeping zone and living zone"
+  },
+  "shared-kids-room": {
+    roomType: "kids bedroom",
+    designStyle: "cozy",
+    dimensions: "12 x 12 ft",
+    mustHaves: "two beds, toy storage, reading lamp",
+    windowPlan: "back left",
+    wallPlan: "leave center play space open"
+  },
+  "home-office": {
+    roomType: "home office",
+    designStyle: "modern",
+    dimensions: "10 x 12 ft",
+    mustHaves: "standing desk, task chair, storage cabinet",
+    windowPlan: "right wall",
+    wallPlan: "desk should face away from window glare"
+  }
+};
 
 const stylePlans = {
   cozy: {
@@ -468,6 +522,7 @@ function getFormValues() {
   const formData = new FormData(designForm);
 
   return {
+    roomTemplate: formData.get("roomTemplate") || "",
     roomType: formData.get("roomType").trim(),
     roomName: formData.get("roomName").trim(),
     designStyle: formData.get("designStyle"),
@@ -476,6 +531,8 @@ function getFormValues() {
     dimensions: formData.get("dimensions").trim(),
     doorLocation: formData.get("doorLocation") || "front",
     doorNote: formData.get("doorNote").trim(),
+    windowPlan: formData.get("windowPlan")?.trim() || "",
+    wallPlan: formData.get("wallPlan")?.trim() || "",
     extraSpaces: getExtraSpaceValues(formData),
     outlets: getOutletValues(formData),
     ceilingLights: getCeilingLightValues(formData),
@@ -509,6 +566,22 @@ function setFormValues(values) {
       } else {
         field.value = value || "";
       }
+    }
+  });
+}
+
+function applyRoomTemplate(templateKey) {
+  const template = roomTemplates[templateKey];
+
+  if (!template) {
+    return;
+  }
+
+  Object.entries(template).forEach(([key, value]) => {
+    const field = designForm.elements.namedItem(key);
+
+    if (field) {
+      field.value = value;
     }
   });
 }
@@ -677,8 +750,35 @@ function parseExtraSpaces(spaces) {
     .filter(Boolean);
 }
 
+function parseWindowPlan(value) {
+  return splitList(value || "")
+    .slice(0, 6)
+    .map((item) => {
+      const text = item.toLowerCase();
+      const wall = /left/.test(text)
+        ? "left"
+        : /right/.test(text)
+        ? "right"
+        : /back|rear/.test(text)
+        ? "back"
+        : "front";
+      const position = /left/.test(text)
+        ? "left"
+        : /right/.test(text)
+        ? "right"
+        : "center";
+
+      return {
+        label: item,
+        wall,
+        position
+      };
+    });
+}
+
 function getRoomShape(formValues, dimensions) {
   const spaces = parseExtraSpaces(formValues.extraSpaces || []);
+  const windows = parseWindowPlan(formValues.windowPlan || "");
   const doorLocation = formValues.doorLocation || "front";
   const doorLabel = doorLocation.charAt(0).toUpperCase() + doorLocation.slice(1);
   const doorNote = formValues.doorNote ? `, ${formValues.doorNote}` : "";
@@ -689,11 +789,13 @@ function getRoomShape(formValues, dimensions) {
   return {
     main: dimensions,
     spaces,
+    windows,
     doorLocation,
     doorLabel,
     doorNote: formValues.doorNote || "",
+    wallPlan: formValues.wallPlan || "",
     label: `${dimensions.label}${extraLabel}`,
-    summary: `${doorLabel} wall door${doorNote}${extraLabel ? `; extra spaces: ${spaces.map((space) => `${space.name} on the ${space.side}`).join(", ")}` : ""}`
+    summary: `${doorLabel} wall door${doorNote}${windows.length ? `; windows: ${windows.map((windowItem) => windowItem.label).join(", ")}` : ""}${formValues.wallPlan ? `; walls: ${formValues.wallPlan}` : ""}${extraLabel ? `; extra spaces: ${spaces.map((space) => `${space.name} on the ${space.side}`).join(", ")}` : ""}`
   };
 }
 
@@ -753,6 +855,108 @@ function buildChecklist(budgetTier, mustHaves, products) {
     : ["Confirm the largest furniture piece before buying"];
 
   return [...productChecks, ...mustHaveItems, ...budgetIdeas[budgetTier]];
+}
+
+function estimateProductCost(product) {
+  if (product.owned) {
+    return 0;
+  }
+
+  const numbers = String(product.price || "").match(/\d[\d,]*/g)?.map((value) => Number(value.replace(/,/g, ""))) || [];
+
+  if (!numbers.length) {
+    return 120;
+  }
+
+  return Math.round(numbers.reduce((total, value) => total + value, 0) / numbers.length);
+}
+
+function buildBudgetSummary(products, budget) {
+  const plannedTotal = products.reduce((total, product) => total + estimateProductCost(product), 0);
+  const targetBudget = Number(budget) || plannedTotal || 0;
+  const remaining = targetBudget - plannedTotal;
+
+  return {
+    plannedTotal,
+    targetBudget,
+    remaining,
+    status: !targetBudget
+      ? "Add a budget to compare costs."
+      : remaining >= 0
+      ? `$${remaining.toLocaleString()} under budget`
+      : `$${Math.abs(remaining).toLocaleString()} over budget`
+  };
+}
+
+function getProductFootprint(product, fallbackItem) {
+  const size = getOwnedFurnitureSize(product, fallbackItem.size);
+  const scale = product.scale || 1;
+  const rotated = Math.abs((product.rotation || 0) % 180) === 90;
+  const width = size[0] * scale;
+  const depth = size[2] * scale;
+
+  return {
+    width: rotated ? depth : width,
+    depth: rotated ? width : depth,
+    height: size[1] * scale
+  };
+}
+
+function buildFitWarnings(products, dimensions, roomShape) {
+  const warnings = [];
+  const itemData = getDefaultItemData(dimensions.width, dimensions.length);
+
+  products.slice(0, itemData.length).forEach((product, index) => {
+    const footprint = getProductFootprint(product, itemData[index]);
+    const placement = getProductPlacement(product, itemData[index], dimensions.width, dimensions.length);
+
+    if (footprint.width > dimensions.width * 0.55 || footprint.depth > dimensions.length * 0.55) {
+      warnings.push(`${product.name} is a large piece for this room. Check walking space before buying.`);
+    }
+
+    if (roomShape.doorLocation === "front" && placement.z > dimensions.length * 0.28) {
+      warnings.push(`${product.name} may crowd the front door path.`);
+    }
+
+    products.slice(index + 1, itemData.length).forEach((otherProduct, otherIndexOffset) => {
+      const otherIndex = index + otherIndexOffset + 1;
+      const otherFootprint = getProductFootprint(otherProduct, itemData[otherIndex]);
+      const otherPlacement = getProductPlacement(otherProduct, itemData[otherIndex], dimensions.width, dimensions.length);
+      const overlapsX = Math.abs(placement.x - otherPlacement.x) < (footprint.width + otherFootprint.width) * 0.36;
+      const overlapsZ = Math.abs(placement.z - otherPlacement.z) < (footprint.depth + otherFootprint.depth) * 0.36;
+
+      if (overlapsX && overlapsZ) {
+        warnings.push(`${product.name} and ${otherProduct.name} may overlap. Drag one into another zone.`);
+      }
+    });
+  });
+
+  if (roomShape.windows.length) {
+    warnings.push("Keep tall storage and screens away from marked windows when possible.");
+  }
+
+  if (roomShape.wallPlan) {
+    warnings.push("Custom wall notes are included as planning guidance. Confirm unusual wall angles with a tape measure.");
+  }
+
+  return [...new Set(warnings)].slice(0, 7);
+}
+
+function buildStyleNotes(snapshot) {
+  const colorNames = [
+    ...splitList(snapshot.formValues.favoriteColors),
+    ...snapshot.palette.map((color) => color.name)
+  ].slice(0, 4);
+
+  return [
+    `Use ${colorNames.join(", ")} as the main visual direction.`,
+    `Place the largest piece first, then rotate smaller furniture until door paths stay open.`,
+    `For a ${snapshot.dimensions.label} room, keep at least one clear center walkway.`,
+    snapshot.roomShape.windows.length
+      ? "Use window walls for daylight, but avoid screen glare and tall blocked views."
+      : "Add window placement when you want more exact lighting advice.",
+    `Choose add-ons only after the main pieces fit inside the model.`
+  ];
 }
 
 async function makeImportedProducts(furnitureLinks) {
@@ -1031,7 +1235,21 @@ function renderSavedRooms() {
     deleteButton.setAttribute("aria-label", `Delete ${room.name}`);
     deleteButton.addEventListener("click", () => deleteSavedRoom(room.id));
 
-    actions.append(loadButton, deleteButton);
+    const duplicateButton = document.createElement("button");
+    duplicateButton.type = "button";
+    duplicateButton.className = "secondary-button";
+    duplicateButton.textContent = "Duplicate";
+    duplicateButton.setAttribute("aria-label", `Duplicate ${room.name}`);
+    duplicateButton.addEventListener("click", () => duplicateSavedRoom(room.id));
+
+    const renameButton = document.createElement("button");
+    renameButton.type = "button";
+    renameButton.className = "secondary-button";
+    renameButton.textContent = "Rename";
+    renameButton.setAttribute("aria-label", `Rename ${room.name}`);
+    renameButton.addEventListener("click", () => renameSavedRoom(room.id));
+
+    actions.append(loadButton, duplicateButton, renameButton, deleteButton);
     card.append(title, meta, actions);
     savedRoomList.appendChild(card);
   });
@@ -1046,6 +1264,8 @@ function buildSnapshot(formValues, products) {
   const ownedCount = products.filter((product) => product.owned).length;
   const roomShape = getRoomShape(formValues, dimensions);
   const electricalPlan = getElectricalPlan(formValues);
+  const budgetSummary = buildBudgetSummary(products, formValues.budget);
+  const warnings = buildFitWarnings(products, dimensions, roomShape);
 
   return {
     formValues,
@@ -1056,6 +1276,8 @@ function buildSnapshot(formValues, products) {
     palette: plan.palette,
     decor: plan.decor,
     checklist: buildChecklist(getBudgetTier(Number(formValues.budget)), mustHaves, products),
+    budgetSummary,
+    warnings,
     dimensions,
     roomShape,
     electricalPlan,
@@ -1109,6 +1331,10 @@ function renderSnapshot(snapshot) {
   showPalette(snapshot.palette, snapshot.formValues.favoriteColors);
   showProducts(snapshot.products);
   showSuggestedAddOns(snapshot);
+  renderPlacementTools(snapshot);
+  renderBudgetTracker(snapshot.budgetSummary || buildBudgetSummary(snapshot.products, snapshot.formValues.budget));
+  addListItems(fitWarnings, snapshot.warnings || buildFitWarnings(snapshot.products, snapshot.dimensions, snapshot.roomShape || getRoomShape(snapshot.formValues, snapshot.dimensions)));
+  renderMoodBoard(snapshot);
   renderRoomPreview(
     snapshot.modelView,
     snapshot.dimensions,
@@ -1118,6 +1344,7 @@ function renderSnapshot(snapshot) {
   );
   showFurnitureList(snapshot.products);
   addListItems(decorIdeas, snapshot.decor);
+  addListItems(styleNotes, buildStyleNotes(snapshot));
   addListItems(shoppingChecklist, snapshot.checklist);
 
   emptyState.classList.add("hidden");
@@ -1186,6 +1413,47 @@ function deleteSavedRoom(id) {
   saveStatus.textContent = "Deleted";
 }
 
+function duplicateSavedRoom(id) {
+  const savedRooms = getSavedRooms();
+  const room = savedRooms.find((item) => item.id === id);
+
+  if (!room) {
+    return;
+  }
+
+  const copy = {
+    ...JSON.parse(JSON.stringify(room)),
+    id: createSaveId(),
+    name: `${room.name} copy`,
+    updatedAt: new Date().toISOString()
+  };
+
+  setSavedRooms([copy, ...savedRooms]);
+  renderSavedRooms();
+  saveStatus.textContent = "Duplicated";
+}
+
+function renameSavedRoom(id) {
+  const savedRooms = getSavedRooms();
+  const room = savedRooms.find((item) => item.id === id);
+
+  if (!room) {
+    return;
+  }
+
+  const nextName = window.prompt("Room name", room.name);
+
+  if (!nextName?.trim()) {
+    return;
+  }
+
+  setSavedRooms(savedRooms.map((item) => item.id === id
+    ? { ...item, name: nextName.trim(), updatedAt: new Date().toISOString() }
+    : item));
+  renderSavedRooms();
+  saveStatus.textContent = "Renamed";
+}
+
 function showPalette(colors, favoriteColors) {
   colorPalette.innerHTML = "";
 
@@ -1209,6 +1477,169 @@ function showPalette(colors, favoriteColors) {
     paletteItem.append(swatch, name);
     colorPalette.appendChild(paletteItem);
   });
+}
+
+function renderBudgetTracker(summary) {
+  if (!budgetTracker) {
+    return;
+  }
+
+  const percent = summary.targetBudget
+    ? Math.min(100, Math.round((summary.plannedTotal / summary.targetBudget) * 100))
+    : 0;
+
+  budgetTracker.innerHTML = `
+    <div class="budget-row"><span>Estimated total</span><strong>$${summary.plannedTotal.toLocaleString()}</strong></div>
+    <div class="budget-row"><span>Budget</span><strong>${summary.targetBudget ? `$${summary.targetBudget.toLocaleString()}` : "Not set"}</strong></div>
+    <div class="budget-meter" aria-hidden="true"><span style="width: ${percent}%"></span></div>
+    <p>${summary.status}</p>
+  `;
+}
+
+function renderMoodBoard(snapshot) {
+  if (!moodBoard) {
+    return;
+  }
+
+  moodBoard.innerHTML = "";
+  const swatches = [
+    ...splitList(snapshot.formValues.favoriteColors).map((name) => ({ name, color: "#e7ddd0" })),
+    ...snapshot.palette
+  ].slice(0, 5);
+
+  swatches.forEach((item) => {
+    const tile = document.createElement("div");
+    tile.className = "mood-tile";
+    tile.style.setProperty("--mood-color", item.color);
+    tile.textContent = item.name;
+    moodBoard.appendChild(tile);
+  });
+
+  snapshot.products.slice(0, 4).forEach((product) => {
+    const tile = document.createElement("div");
+    tile.className = "mood-tile product-mood";
+    tile.style.setProperty("--mood-color", product.color);
+    tile.textContent = product.name;
+    moodBoard.appendChild(tile);
+  });
+}
+
+function renderPlacementTools(snapshot) {
+  if (!selectedFurniture) {
+    return;
+  }
+
+  selectedFurniture.innerHTML = "";
+  snapshot.products.slice(0, MAX_MODEL_PRODUCTS).forEach((product, index) => {
+    const option = document.createElement("option");
+    option.value = product.id;
+    option.textContent = `${index + 1}. ${product.name}`;
+    selectedFurniture.appendChild(option);
+  });
+}
+
+function getSelectedProduct() {
+  if (!currentSnapshot || !selectedFurniture) {
+    return null;
+  }
+
+  return currentSnapshot.products.find((product) => product.id === selectedFurniture.value) || currentSnapshot.products[0] || null;
+}
+
+function updateSelectedProductPlacement(updater) {
+  const product = getSelectedProduct();
+
+  if (!product || !currentSnapshot) {
+    return;
+  }
+
+  updater(product);
+  currentSnapshot.budgetSummary = buildBudgetSummary(currentSnapshot.products, currentSnapshot.formValues.budget);
+  currentSnapshot.warnings = buildFitWarnings(currentSnapshot.products, currentSnapshot.dimensions, currentSnapshot.roomShape);
+  renderSnapshot(currentSnapshot);
+}
+
+function downloadTextFile(filename, text, type = "text/plain") {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportRoomImage() {
+  if (!currentSnapshot) {
+    return;
+  }
+
+  const plan = roomPreview.querySelector(".floor-plan");
+  const canvas = roomPreview.querySelector("canvas");
+
+  if (canvas) {
+    try {
+      const link = document.createElement("a");
+      link.href = canvas.toDataURL("image/png");
+      link.download = "room-design-model.png";
+      link.click();
+      return;
+    } catch {
+      exportRoomPdf();
+      return;
+    }
+  }
+
+  if (plan) {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="960" height="620">
+        <foreignObject width="100%" height="100%">
+          <div xmlns="http://www.w3.org/1999/xhtml">${plan.outerHTML}</div>
+        </foreignObject>
+      </svg>`;
+    downloadTextFile("room-design-plan.svg", svg, "image/svg+xml");
+  }
+}
+
+function exportRoomPdf() {
+  if (!currentSnapshot) {
+    return;
+  }
+
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    return;
+  }
+
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>${currentSnapshot.title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 32px; color: #222; line-height: 1.5; }
+          h1 { margin-bottom: 8px; }
+          h2 { margin-top: 24px; }
+          li { margin-bottom: 6px; }
+        </style>
+      </head>
+      <body>
+        <h1>${currentSnapshot.title}</h1>
+        <p>${currentSnapshot.description}</p>
+        <h2>Furniture</h2>
+        <ul>${currentSnapshot.products.map((product) => `<li>${product.name}: ${product.size}, ${product.price}</li>`).join("")}</ul>
+        <h2>Budget</h2>
+        <p>Estimated total: $${(currentSnapshot.budgetSummary?.plannedTotal || 0).toLocaleString()} - ${currentSnapshot.budgetSummary?.status || ""}</p>
+        <h2>Fit Warnings</h2>
+        <ul>${(currentSnapshot.warnings || []).map((warning) => `<li>${warning}</li>`).join("")}</ul>
+        <h2>Layout</h2>
+        <p>${currentSnapshot.layout}</p>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
 }
 
 function showProducts(products) {
@@ -1307,6 +1738,24 @@ function showProducts(products) {
       body.appendChild(storeLink);
     }
 
+    if (!product.owned) {
+      const compare = document.createElement("div");
+      compare.className = "compare-links";
+      [
+        ["Amazon", makeShoppingSearchLink(product.name)],
+        ["Walmart", `https://www.walmart.com/search?q=${encodeURIComponent(product.name)}`],
+        ["Target", `https://www.target.com/s?searchTerm=${encodeURIComponent(product.name)}`]
+      ].forEach(([label, href]) => {
+        const compareLink = document.createElement("a");
+        compareLink.href = href;
+        compareLink.target = "_blank";
+        compareLink.rel = "noopener noreferrer";
+        compareLink.textContent = label;
+        compare.appendChild(compareLink);
+      });
+      body.appendChild(compare);
+    }
+
     const chooseButton = document.createElement("button");
     chooseButton.type = "button";
     chooseButton.className = "choose-button";
@@ -1388,6 +1837,8 @@ function showSuggestedAddOns(snapshot) {
         splitList(currentSnapshot.formValues.mustHaves || ""),
         currentSnapshot.products
       );
+      currentSnapshot.budgetSummary = buildBudgetSummary(currentSnapshot.products, currentSnapshot.formValues.budget);
+      currentSnapshot.warnings = buildFitWarnings(currentSnapshot.products, currentSnapshot.dimensions, currentSnapshot.roomShape);
       currentSnapshot.layout = `${currentSnapshot.layout} Added ${product.name} as an optional piece; drag it into an open zone before shopping.`;
       renderSnapshot(currentSnapshot);
     });
@@ -1451,6 +1902,22 @@ function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dime
   door.setAttribute("aria-hidden", "true");
   plan.appendChild(door);
 
+  roomShape.windows.slice(0, 6).forEach((windowItem) => {
+    const marker = document.createElement("span");
+    marker.className = `floor-window ${windowItem.wall} ${getWallPositionClass(windowItem.position)}`;
+    marker.textContent = "Window";
+    marker.setAttribute("aria-hidden", "true");
+    plan.appendChild(marker);
+  });
+
+  if (roomShape.wallPlan) {
+    const wallNote = document.createElement("span");
+    wallNote.className = "floor-wall-note";
+    wallNote.textContent = "Custom wall";
+    wallNote.title = roomShape.wallPlan;
+    plan.appendChild(wallNote);
+  }
+
   roomShape.spaces.slice(0, 4).forEach((space, index) => {
     const extra = document.createElement("div");
     const side = space.side || "right";
@@ -1489,10 +1956,10 @@ function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dime
 
   products.slice(0, itemData.length).forEach((product, index) => {
     const fallbackItem = itemData[index];
-    const productSize = getOwnedFurnitureSize(product, fallbackItem.size);
+    const productSize = getProductFootprint(product, fallbackItem);
     const placement = getProductPlacement(product, fallbackItem, dimensions.width, dimensions.length);
-    const itemWidthPercent = Math.max(12, Math.min(44, (productSize[0] / dimensions.width) * 82));
-    const itemHeightPercent = Math.max(10, Math.min(42, (productSize[2] / dimensions.length) * 82));
+    const itemWidthPercent = Math.max(12, Math.min(44, (productSize.width / dimensions.width) * 82));
+    const itemHeightPercent = Math.max(10, Math.min(42, (productSize.depth / dimensions.length) * 82));
     const leftPercent = ((placement.x + dimensions.width / 2) / dimensions.width) * 100;
     const topPercent = ((placement.z + dimensions.length / 2) / dimensions.length) * 100;
     const item = document.createElement("div");
@@ -1501,19 +1968,30 @@ function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dime
     item.tabIndex = 0;
     item.setAttribute("role", "button");
     item.setAttribute("aria-label", `Drag ${product.name} to place it in the room`);
+    item.dataset.productId = product.id;
     item.style.setProperty("--item-color", product.color);
     item.style.width = `${itemWidthPercent}%`;
     item.style.height = `${itemHeightPercent}%`;
     item.style.left = `${leftPercent}%`;
     item.style.top = `${topPercent}%`;
-    item.style.transform = "translate(-50%, -50%)";
+    item.style.transform = `translate(-50%, -50%) rotate(${product.rotation || 0}deg)`;
 
     if (product.imageUrl) {
       item.style.backgroundImage = `url("${product.imageUrl}")`;
       item.style.setProperty("--image-dim", "0.35");
     }
 
+    const resizeHandle = document.createElement("span");
+    resizeHandle.className = "resize-handle";
+    resizeHandle.setAttribute("aria-hidden", "true");
+    const measure = document.createElement("span");
+    measure.className = "measure-label";
+    measure.textContent = product.size;
+    item.appendChild(resizeHandle);
+    item.appendChild(measure);
+
     attachFloorItemDrag(item, product, plan, dimensions);
+    attachFloorItemResize(resizeHandle, item, product);
 
     plan.appendChild(item);
   });
@@ -1538,6 +2016,9 @@ function attachFloorItemDrag(item, product, plan, dimensions) {
 
   item.addEventListener("pointerdown", (event) => {
     event.preventDefault();
+    if (selectedFurniture) {
+      selectedFurniture.value = product.id;
+    }
     isDragging = true;
     item.setPointerCapture(event.pointerId);
     moveItem(event);
@@ -1565,9 +2046,49 @@ function attachFloorItemDrag(item, product, plan, dimensions) {
   });
 }
 
+function attachFloorItemResize(handle, item, product) {
+  let startX = 0;
+  let startScale = 1;
+  let startWidth = 0;
+  let startHeight = 0;
+
+  handle.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    startX = event.clientX;
+    startScale = product.scale || 1;
+    startWidth = parseFloat(item.style.width);
+    startHeight = parseFloat(item.style.height);
+    handle.setPointerCapture(event.pointerId);
+  });
+
+  handle.addEventListener("pointermove", (event) => {
+    if (!handle.hasPointerCapture(event.pointerId)) {
+      return;
+    }
+
+    const delta = (event.clientX - startX) / 160;
+    product.scale = Math.max(0.65, Math.min(1.6, startScale + delta));
+    item.style.width = `${startWidth * (product.scale / startScale)}%`;
+    item.style.height = `${startHeight * (product.scale / startScale)}%`;
+  });
+
+  handle.addEventListener("pointerup", (event) => {
+    if (handle.hasPointerCapture(event.pointerId)) {
+      handle.releasePointerCapture(event.pointerId);
+    }
+
+    if (currentSnapshot) {
+      currentSnapshot.warnings = buildFitWarnings(currentSnapshot.products, currentSnapshot.dimensions, currentSnapshot.roomShape);
+      renderSnapshot(currentSnapshot);
+    }
+  });
+}
+
 function addFurnitureObject(scene, product, item, THREE) {
   const group = new THREE.Group();
   group.position.set(item.pos[0], 0, item.pos[2]);
+  group.rotation.y = ((product.rotation || 0) * Math.PI) / 180;
   const material = new THREE.MeshStandardMaterial({
     color: new THREE.Color(product.color),
     roughness: 0.62,
@@ -1798,6 +2319,35 @@ function addOutletObject(scene, outlet, width, length, THREE) {
   scene.add(plate, slotA, slotB);
 }
 
+function addWindowObject(scene, windowItem, width, length, THREE) {
+  const coords = getFixtureCoordinates(windowItem.wall, windowItem.position, width, length);
+  const pane = new THREE.Mesh(
+    new THREE.BoxGeometry(windowItem.wall === "left" || windowItem.wall === "right" ? 0.05 : 1.4, 0.85, windowItem.wall === "left" || windowItem.wall === "right" ? 1.4 : 0.05),
+    new THREE.MeshStandardMaterial({ color: 0xbfe3ee, roughness: 0.2, transparent: true, opacity: 0.72 })
+  );
+  pane.position.set(coords.x, 1.55, coords.z);
+  scene.add(pane);
+
+  const daylight = new THREE.PointLight(0xdff8ff, 0.22, Math.max(width, length) * 0.45);
+  daylight.position.set(coords.x * 0.88, 1.8, coords.z * 0.88);
+  scene.add(daylight);
+}
+
+function addCustomWallObject(scene, roomShape, width, length, THREE) {
+  if (!roomShape.wallPlan) {
+    return;
+  }
+
+  const wall = new THREE.Mesh(
+    new THREE.BoxGeometry(width * 0.38, 2.35, 0.12),
+    new THREE.MeshStandardMaterial({ color: 0xf4e7d7, roughness: 0.82, transparent: true, opacity: 0.82 })
+  );
+  wall.position.set(-width * 0.18, 1.16, -length * 0.18);
+  wall.rotation.y = Math.PI * 0.16;
+  scene.add(wall);
+  addEdgeLines(wall, THREE, 0x8f7f70);
+}
+
 function addCeilingLightObject(scene, light, width, length, THREE) {
   const coords = getCeilingLightCoordinates(light.position, width, length);
   const fixtureMaterial = new THREE.MeshStandardMaterial({
@@ -1886,6 +2436,7 @@ async function addRealModelObject(scene, product, item, THREE, renderer, camera)
       (gltf) => {
         const object = gltf.scene;
         normalizeModelToFootprint(object, item, THREE);
+        object.rotation.y = ((product.rotation || 0) * Math.PI) / 180;
         object.position.x += item.pos[0];
         object.position.z += item.pos[2];
         object.traverse((child) => {
@@ -2130,6 +2681,11 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   doorMarker.position.set(doorCoords.x, 1.02, doorCoords.z);
   scene.add(doorMarker);
 
+  roomShape.windows.slice(0, 6).forEach((windowItem) => {
+    addWindowObject(scene, windowItem, width, length, THREE);
+  });
+  addCustomWallObject(scene, roomShape, width, length, THREE);
+
   const itemData = getDefaultItemData(width, length);
   const draggableObjects = [];
 
@@ -2153,7 +2709,7 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
     const item = {
       ...itemData[index],
       pos: [placement.x, itemData[index].pos[1], placement.z],
-      size: getOwnedFurnitureSize(product, itemData[index].size)
+      size: getOwnedFurnitureSize(product, itemData[index].size).map((value) => value * (product.scale || 1))
     };
     if (product.modelUrl) {
       addRealModelObject(scene, product, item, THREE, renderer, camera).then((object) => {
@@ -2250,6 +2806,12 @@ function resetDesign() {
   layoutSuggestion.textContent = "";
   shoppingChecklist.innerHTML = "";
   productPicks.innerHTML = "";
+  suggestedAddOns.innerHTML = "";
+  selectedFurniture.innerHTML = "";
+  budgetTracker.innerHTML = "";
+  fitWarnings.innerHTML = "";
+  moodBoard.innerHTML = "";
+  styleNotes.innerHTML = "";
   roomPreview.innerHTML = "";
   roomDimensionsBadge.textContent = "";
   previewCaption.textContent = "";
@@ -2263,6 +2825,31 @@ function resetDesign() {
 designForm.addEventListener("submit", generateDesign);
 resetButton.addEventListener("click", resetDesign);
 saveButton.addEventListener("click", saveCurrentRoom);
+designForm.elements.namedItem("roomTemplate").addEventListener("change", (event) => {
+  applyRoomTemplate(event.target.value);
+});
+rotateLeftButton?.addEventListener("click", () => {
+  updateSelectedProductPlacement((product) => {
+    product.rotation = ((product.rotation || 0) - 90 + 360) % 360;
+  });
+});
+rotateRightButton?.addEventListener("click", () => {
+  updateSelectedProductPlacement((product) => {
+    product.rotation = ((product.rotation || 0) + 90) % 360;
+  });
+});
+shrinkButton?.addEventListener("click", () => {
+  updateSelectedProductPlacement((product) => {
+    product.scale = Math.max(0.65, (product.scale || 1) - 0.1);
+  });
+});
+growButton?.addEventListener("click", () => {
+  updateSelectedProductPlacement((product) => {
+    product.scale = Math.min(1.6, (product.scale || 1) + 0.1);
+  });
+});
+downloadImageButton?.addEventListener("click", exportRoomImage);
+downloadPdfButton?.addEventListener("click", exportRoomPdf);
 addSpaceButton.addEventListener("click", () => {
   extraSpaces.appendChild(createExtraSpaceRow());
 });

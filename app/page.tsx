@@ -52,6 +52,18 @@ export default function Home() {
                 />
               </label>
 
+              <label htmlFor="roomTemplate">
+                Room template
+                <select id="roomTemplate" name="roomTemplate">
+                  <option value="">Custom room</option>
+                  <option value="small-bedroom">Small bedroom</option>
+                  <option value="gaming-setup">Gaming setup</option>
+                  <option value="studio-apartment">Studio apartment</option>
+                  <option value="shared-kids-room">Shared kids room</option>
+                  <option value="home-office">Home office</option>
+                </select>
+              </label>
+
               <label htmlFor="designStyle">
                 Design style
                 <select id="designStyle" name="designStyle" required>
@@ -147,6 +159,24 @@ export default function Home() {
                   id="doorNote"
                   name="doorNote"
                   placeholder="Example: near left corner, swings inward"
+                />
+              </label>
+              <label htmlFor="windowPlan">
+                Windows
+                <input
+                  type="text"
+                  id="windowPlan"
+                  name="windowPlan"
+                  placeholder="Example: back center, left wall"
+                />
+              </label>
+              <label htmlFor="wallPlan">
+                Custom wall notes
+                <input
+                  type="text"
+                  id="wallPlan"
+                  name="wallPlan"
+                  placeholder="Example: angled wall near closet, bay window bump-out"
                 />
               </label>
               <div className="extra-spaces" id="extraSpaces" aria-label="Extra room spaces">
@@ -408,6 +438,19 @@ export default function Home() {
                     <h3>Room Model</h3>
                     <span id="roomDimensionsBadge" className="dimension-badge"></span>
                   </div>
+                  <div className="placement-tools" id="placementTools" aria-label="Furniture placement tools">
+                    <label htmlFor="selectedFurniture">Selected piece
+                      <select id="selectedFurniture"></select>
+                    </label>
+                    <div className="tool-button-row">
+                      <button type="button" className="secondary-button" id="rotateLeftButton">Rotate Left</button>
+                      <button type="button" className="secondary-button" id="rotateRightButton">Rotate Right</button>
+                    </div>
+                    <div className="tool-button-row">
+                      <button type="button" className="secondary-button" id="shrinkButton">Shrink</button>
+                      <button type="button" className="secondary-button" id="growButton">Grow</button>
+                    </div>
+                  </div>
                   <div className="room-preview" id="roomPreview"></div>
                   <p className="preview-caption" id="previewCaption"></p>
                 </article>
@@ -415,6 +458,16 @@ export default function Home() {
                 <article className="result-card">
                   <h3>Color Palette</h3>
                   <div className="palette" id="colorPalette"></div>
+                </article>
+
+                <article className="result-card">
+                  <h3>Budget Tracker</h3>
+                  <div className="budget-tracker" id="budgetTracker"></div>
+                </article>
+
+                <article className="result-card">
+                  <h3>Fit Warnings</h3>
+                  <ul id="fitWarnings"></ul>
                 </article>
 
                 <article className="result-card product-card-wrap">
@@ -442,9 +495,27 @@ export default function Home() {
                   <p id="layoutSuggestion"></p>
                 </article>
 
+                <article className="result-card">
+                  <h3>Mood Board</h3>
+                  <div className="mood-board" id="moodBoard"></div>
+                </article>
+
+                <article className="result-card">
+                  <h3>AI Style Notes</h3>
+                  <ul id="styleNotes"></ul>
+                </article>
+
                 <article className="result-card checklist-card">
                   <h3>Shopping Checklist</h3>
                   <ul id="shoppingChecklist"></ul>
+                </article>
+
+                <article className="result-card checklist-card">
+                  <h3>Export Plan</h3>
+                  <div className="export-actions">
+                    <button type="button" className="secondary-button" id="downloadImageButton">Download Image</button>
+                    <button type="button" className="secondary-button" id="downloadPdfButton">Download PDF</button>
+                  </div>
                 </article>
               </div>
             </div>
