@@ -420,6 +420,11 @@ export default function Home() {
                   <div className="product-grid" id="productPicks"></div>
                 </article>
 
+                <article className="result-card product-card-wrap">
+                  <h3>Suggested Add-Ons</h3>
+                  <div className="suggestion-grid" id="suggestedAddOns"></div>
+                </article>
+
                 <article className="result-card">
                   <h3>Furniture List</h3>
                   <ul id="furnitureList"></ul>

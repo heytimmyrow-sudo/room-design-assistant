@@ -11,6 +11,7 @@ const decorIdeas = document.querySelector("#decorIdeas");
 const layoutSuggestion = document.querySelector("#layoutSuggestion");
 const shoppingChecklist = document.querySelector("#shoppingChecklist");
 const productPicks = document.querySelector("#productPicks");
+const suggestedAddOns = document.querySelector("#suggestedAddOns");
 const roomPreview = document.querySelector("#roomPreview");
 const roomDimensionsBadge = document.querySelector("#roomDimensionsBadge");
 const previewCaption = document.querySelector("#previewCaption");
@@ -32,6 +33,7 @@ const PRODUCT_SETTINGS_KEY = "roomDesignAssistant.productSettings";
 let activeSaveId = "";
 let currentSnapshot = null;
 let gltfLoaderPromise = null;
+const MAX_MODEL_PRODUCTS = 8;
 
 const stylePlans = {
   cozy: {
@@ -119,6 +121,34 @@ const stylePlans = {
       ["Modular Display Shelf", "black cubes with LED-ready channels", "48 x 72 in", "$180-$420", "#7c3aed", "storage"]
     ]
   }
+};
+
+const suggestedFurnitureByStyle = {
+  cozy: [
+    ["Reading Floor Lamp", "warm linen shade for a quiet evening corner", "18 x 18 x 62 in", "$70-$160", "#c8943f", "light"],
+    ["Woven Storage Basket", "soft storage for blankets, toys, or everyday clutter", "20 x 16 x 16 in", "$35-$85", "#9c7a55", "storage"],
+    ["Compact Accent Chair", "extra seat with rounded arms and textured fabric", "30 x 32 x 34 in", "$180-$420", "#8a8f67", "chair"]
+  ],
+  modern: [
+    ["Slim Console Table", "narrow landing zone with a clean metal frame", "44 x 12 x 30 in", "$120-$280", "#2f3437", "table"],
+    ["Low Planter Stand", "structured greenery without taking much floor space", "16 x 16 x 24 in", "$45-$120", "#0f766e", "storage"],
+    ["Swivel Accent Chair", "compact seating with a polished modern profile", "31 x 31 x 32 in", "$240-$620", "#b58b3b", "chair"]
+  ],
+  minimalist: [
+    ["Wall-Mounted Shelf", "simple display and storage that keeps the floor open", "36 x 10 x 8 in", "$55-$140", "#c9a66b", "storage"],
+    ["Paper Shade Floor Lamp", "soft light with a quiet sculptural shape", "15 x 15 x 58 in", "$45-$130", "#fafaf7", "light"],
+    ["Small Round Stool", "flexible seat or side table with a small footprint", "16 x 16 x 18 in", "$50-$120", "#b9b5ad", "chair"]
+  ],
+  luxury: [
+    ["Velvet Storage Ottoman", "rich texture plus hidden storage for blankets", "42 x 22 x 18 in", "$180-$480", "#0d5c50", "seat"],
+    ["Brass Picture Light", "focused accent lighting for art or shelving", "20 x 6 x 8 in", "$90-$220", "#d4b16a", "light"],
+    ["Marble-Look Drink Table", "small polished perch for seating zones", "14 x 14 x 24 in", "$120-$280", "#f4ede1", "table"]
+  ],
+  gaming: [
+    ["Cable Management Rack", "keeps power strips and cords off the floor", "24 x 8 x 6 in", "$25-$70", "#20242a", "storage"],
+    ["LED Corner Lamp", "vertical color light for ambient game lighting", "10 x 10 x 58 in", "$45-$140", "#18b7d9", "light"],
+    ["Controller Display Shelf", "small wall-style display for gear and collectibles", "32 x 8 x 24 in", "$50-$150", "#7c3aed", "storage"]
+  ]
 };
 
 function splitList(value) {
@@ -771,6 +801,25 @@ function makeSearchProduct(name, description, size, price, color, shape, searchQ
   };
 }
 
+function makeSuggestedProduct(item, productSettings) {
+  const [name, description, size, price, color, shape] = item;
+  const searchProduct = makeSearchProduct(name, description, size, price, color, shape);
+
+  if (productSettings?.addStoreLinks === false) {
+    return {
+      ...searchProduct,
+      sourceUrl: "",
+      searchLink: false,
+      suggested: true
+    };
+  }
+
+  return {
+    ...searchProduct,
+    suggested: true
+  };
+}
+
 function makeExactGeneratedProduct(match, fallback, color, shape) {
   return {
     name: match.title || fallback.name,
@@ -820,6 +869,13 @@ function attachModelLinks(products, modelLinks) {
   return products.map((product, index) => ({
     ...product,
     modelUrl: validModelLinks[index] || product.modelUrl || ""
+  }));
+}
+
+function withProductIds(products) {
+  return products.map((product, index) => ({
+    ...product,
+    id: product.id || `${Date.now().toString(36)}-${index}-${product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 24)}`
   }));
 }
 
@@ -894,7 +950,7 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings, mo
 
   const ownedProducts = makeOwnedProducts(ownedFurniture);
 
-  return attachModelLinks([...ownedProducts, ...normalizedImportedProducts, ...products].slice(0, 8), modelLinks);
+  return withProductIds(attachModelLinks([...ownedProducts, ...normalizedImportedProducts, ...products].slice(0, MAX_MODEL_PRODUCTS), modelLinks));
 }
 
 function addListItems(container, items) {
@@ -1032,8 +1088,17 @@ function ensureProductLinks(products, formValues) {
   });
 }
 
+function getSuggestedFurniture(formValues) {
+  const style = formValues?.designStyle || "cozy";
+  const suggestions = suggestedFurnitureByStyle[style] || suggestedFurnitureByStyle.cozy;
+  const existingNames = new Set((currentSnapshot?.products || []).map((product) => product.name.toLowerCase()));
+
+  return suggestions.filter((item) => !existingNames.has(item[0].toLowerCase()));
+}
+
 function renderSnapshot(snapshot) {
   snapshot.products = ensureProductLinks(snapshot.products, snapshot.formValues);
+  snapshot.products = withProductIds(snapshot.products);
   currentSnapshot = snapshot;
   saveButton.disabled = false;
 
@@ -1043,6 +1108,7 @@ function renderSnapshot(snapshot) {
 
   showPalette(snapshot.palette, snapshot.formValues.favoriteColors);
   showProducts(snapshot.products);
+  showSuggestedAddOns(snapshot);
   renderRoomPreview(
     snapshot.modelView,
     snapshot.dimensions,
@@ -1266,6 +1332,98 @@ function showProducts(products) {
   });
 }
 
+function showSuggestedAddOns(snapshot) {
+  if (!suggestedAddOns) {
+    return;
+  }
+
+  suggestedAddOns.innerHTML = "";
+  const suggestions = getSuggestedFurniture(snapshot.formValues).slice(0, 3);
+
+  if (!suggestions.length) {
+    const empty = document.createElement("p");
+    empty.className = "suggestion-empty";
+    empty.textContent = "All suggested add-ons are already in this plan.";
+    suggestedAddOns.appendChild(empty);
+    return;
+  }
+
+  suggestions.forEach((item) => {
+    const product = makeSuggestedProduct(item, {
+      addStoreLinks: snapshot.formValues.addStoreLinks
+    });
+    const card = document.createElement("article");
+    card.className = "suggestion-card";
+    card.style.setProperty("--product-color", product.color);
+
+    const title = document.createElement("h4");
+    title.textContent = product.name;
+
+    const description = document.createElement("p");
+    description.textContent = product.description;
+
+    const meta = document.createElement("div");
+    meta.className = "product-meta";
+
+    [product.size, product.price].forEach((text) => {
+      const badge = document.createElement("span");
+      badge.textContent = text;
+      meta.appendChild(badge);
+    });
+
+    const addButton = document.createElement("button");
+    addButton.type = "button";
+    addButton.className = "add-suggestion-button";
+    addButton.textContent = snapshot.products.length >= MAX_MODEL_PRODUCTS ? "Plan is full" : "Add to plan";
+    addButton.disabled = snapshot.products.length >= MAX_MODEL_PRODUCTS;
+    addButton.setAttribute("aria-label", `Add ${product.name} to the room plan`);
+    addButton.addEventListener("click", () => {
+      if (!currentSnapshot || currentSnapshot.products.length >= MAX_MODEL_PRODUCTS) {
+        return;
+      }
+
+      currentSnapshot.products = withProductIds([...currentSnapshot.products, product]);
+      currentSnapshot.checklist = buildChecklist(
+        getBudgetTier(Number(currentSnapshot.formValues.budget)),
+        splitList(currentSnapshot.formValues.mustHaves || ""),
+        currentSnapshot.products
+      );
+      currentSnapshot.layout = `${currentSnapshot.layout} Added ${product.name} as an optional piece; drag it into an open zone before shopping.`;
+      renderSnapshot(currentSnapshot);
+    });
+
+    card.append(title, description, meta, addButton);
+    suggestedAddOns.appendChild(card);
+  });
+}
+
+function getDefaultItemData(width, length) {
+  return [
+    { size: [width * 0.38, 0.62, length * 0.18], pos: [-width * 0.18, 0.35, length * 0.26] },
+    { size: [width * 0.16, 0.38, length * 0.14], pos: [width * 0.16, 0.24, length * 0.1] },
+    { size: [width * 0.14, 1.35, length * 0.28], pos: [width * 0.32, 0.74, -length * 0.18] },
+    { size: [width * 0.38, 0.08, length * 0.26], pos: [-width * 0.08, 0.05, length * 0.08] },
+    { size: [width * 0.18, 0.5, length * 0.16], pos: [-width * 0.34, 0.28, -length * 0.22] },
+    { size: [width * 0.2, 0.44, length * 0.16], pos: [width * 0.28, 0.27, length * 0.34] },
+    { size: [width * 0.16, 0.5, length * 0.14], pos: [width * 0.34, 0.28, -length * 0.36] },
+    { size: [width * 0.14, 0.52, length * 0.14], pos: [-width * 0.36, 0.29, length * 0.36] }
+  ];
+}
+
+function getProductPlacement(product, fallbackItem, width, length) {
+  const placement = product.placement || {};
+  const x = Number.isFinite(placement.x) ? placement.x : fallbackItem.pos[0];
+  const z = Number.isFinite(placement.z) ? placement.z : fallbackItem.pos[2];
+  return {
+    x: Math.max(-width / 2 + 0.6, Math.min(width / 2 - 0.6, x)),
+    z: Math.max(-length / 2 + 0.6, Math.min(length / 2 - 0.6, z))
+  };
+}
+
+function setProductPlacement(product, x, z, width, length) {
+  product.placement = getProductPlacement({ placement: { x, z } }, { pos: [x, 0, z] }, width, length);
+}
+
 function getWallPositionClass(position) {
   return position === "left" ? "left-pos" : position === "right" ? "right-pos" : "center-pos";
 }
@@ -1327,34 +1485,84 @@ function renderFloorPlan(dimensions, products, roomShape = getRoomShape({}, dime
     plan.appendChild(marker);
   });
 
-  const slots = [
-    { left: "8%", bottom: "16%", width: "39%", height: "24%" },
-    { left: "52%", bottom: "25%", width: "18%", height: "16%" },
-    { right: "7%", top: "12%", width: "18%", height: "44%" },
-    { left: "24%", top: "33%", width: "34%", height: "26%" },
-    { left: "8%", top: "10%", width: "20%", height: "18%" },
-    { right: "9%", bottom: "8%", width: "22%", height: "18%" }
-  ];
+  const itemData = getDefaultItemData(dimensions.width, dimensions.length);
 
-  products.slice(0, slots.length).forEach((product, index) => {
+  products.slice(0, itemData.length).forEach((product, index) => {
+    const fallbackItem = itemData[index];
+    const productSize = getOwnedFurnitureSize(product, fallbackItem.size);
+    const placement = getProductPlacement(product, fallbackItem, dimensions.width, dimensions.length);
+    const itemWidthPercent = Math.max(12, Math.min(44, (productSize[0] / dimensions.width) * 82));
+    const itemHeightPercent = Math.max(10, Math.min(42, (productSize[2] / dimensions.length) * 82));
+    const leftPercent = ((placement.x + dimensions.width / 2) / dimensions.width) * 100;
+    const topPercent = ((placement.z + dimensions.length / 2) / dimensions.length) * 100;
     const item = document.createElement("div");
     item.className = `floor-item ${product.shape}${product.imported ? " imported-object" : ""}`;
     item.textContent = product.name;
+    item.tabIndex = 0;
+    item.setAttribute("role", "button");
+    item.setAttribute("aria-label", `Drag ${product.name} to place it in the room`);
     item.style.setProperty("--item-color", product.color);
+    item.style.width = `${itemWidthPercent}%`;
+    item.style.height = `${itemHeightPercent}%`;
+    item.style.left = `${leftPercent}%`;
+    item.style.top = `${topPercent}%`;
+    item.style.transform = "translate(-50%, -50%)";
 
     if (product.imageUrl) {
       item.style.backgroundImage = `url("${product.imageUrl}")`;
       item.style.setProperty("--image-dim", "0.35");
     }
 
-    Object.entries(slots[index]).forEach(([property, value]) => {
-      item.style[property] = value;
-    });
+    attachFloorItemDrag(item, product, plan, dimensions);
 
     plan.appendChild(item);
   });
 
   roomPreview.appendChild(plan);
+}
+
+function attachFloorItemDrag(item, product, plan, dimensions) {
+  let isDragging = false;
+
+  const moveItem = (event) => {
+    const rect = plan.getBoundingClientRect();
+    const leftRatio = Math.max(0.04, Math.min(0.96, (event.clientX - rect.left) / rect.width));
+    const topRatio = Math.max(0.04, Math.min(0.96, (event.clientY - rect.top) / rect.height));
+    const x = leftRatio * dimensions.width - dimensions.width / 2;
+    const z = topRatio * dimensions.length - dimensions.length / 2;
+    setProductPlacement(product, x, z, dimensions.width, dimensions.length);
+    item.style.left = `${leftRatio * 100}%`;
+    item.style.top = `${topRatio * 100}%`;
+    item.classList.add("is-dragging");
+  };
+
+  item.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    isDragging = true;
+    item.setPointerCapture(event.pointerId);
+    moveItem(event);
+  });
+
+  item.addEventListener("pointermove", (event) => {
+    if (isDragging) {
+      moveItem(event);
+    }
+  });
+
+  item.addEventListener("pointerup", (event) => {
+    if (!isDragging) {
+      return;
+    }
+
+    isDragging = false;
+    item.releasePointerCapture(event.pointerId);
+    item.classList.remove("is-dragging");
+  });
+
+  item.addEventListener("pointercancel", () => {
+    isDragging = false;
+    item.classList.remove("is-dragging");
+  });
 }
 
 function addFurnitureObject(scene, product, item, THREE) {
@@ -1481,6 +1689,7 @@ function addFurnitureObject(scene, product, item, THREE) {
       addEdgeLines(child, THREE, 0x3f352d);
     }
   });
+  return group;
 }
 
 function addEdgeLines(object, THREE, color = 0x5d5147) {
@@ -1687,12 +1896,132 @@ async function addRealModelObject(scene, product, item, THREE, renderer, camera)
         });
         scene.add(object);
         renderer.render(scene, camera);
-        resolve(true);
+        resolve(object);
       },
       undefined,
-      () => resolve(false)
+      () => resolve(null)
     );
   });
+}
+
+function setup3DInteraction(canvas, renderer, scene, camera, products, draggableObjects, width, length, THREE) {
+  const target = new THREE.Vector3(0, 0.35, 0);
+  const spherical = new THREE.Spherical().setFromVector3(camera.position.clone().sub(target));
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const floorPoint = new THREE.Vector3();
+  let mode = "";
+  let active = null;
+  let lastX = 0;
+  let lastY = 0;
+
+  canvas.style.cursor = "grab";
+
+  const render = () => {
+    camera.position.setFromSpherical(spherical).add(target);
+    camera.lookAt(target);
+    renderer.render(scene, camera);
+  };
+
+  const setPointer = (event) => {
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  };
+
+  const findDraggedObject = (event) => {
+    setPointer(event);
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(draggableObjects.map((item) => item.object), true);
+
+    if (!hits.length) {
+      return null;
+    }
+
+    return draggableObjects.find((item) => {
+      let object = hits[0].object;
+      while (object) {
+        if (object === item.object) {
+          return true;
+        }
+        object = object.parent;
+      }
+      return false;
+    }) || null;
+  };
+
+  const dragObject = (event) => {
+    if (!active) {
+      return;
+    }
+
+    setPointer(event);
+    raycaster.setFromCamera(pointer, camera);
+
+    if (!raycaster.ray.intersectPlane(floorPlane, floorPoint)) {
+      return;
+    }
+
+    const x = Math.max(-width / 2 + 0.6, Math.min(width / 2 - 0.6, floorPoint.x));
+    const z = Math.max(-length / 2 + 0.6, Math.min(length / 2 - 0.6, floorPoint.z));
+    active.object.position.x = x;
+    active.object.position.z = z;
+    setProductPlacement(active.product, x, z, width, length);
+    render();
+  };
+
+  canvas.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    lastX = event.clientX;
+    lastY = event.clientY;
+    active = findDraggedObject(event);
+    mode = active ? "move" : "orbit";
+    canvas.setPointerCapture(event.pointerId);
+    canvas.style.cursor = mode === "move" ? "grabbing" : "move";
+
+    if (mode === "move") {
+      dragObject(event);
+    }
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    if (!mode) {
+      return;
+    }
+
+    if (mode === "move") {
+      dragObject(event);
+      return;
+    }
+
+    const deltaX = event.clientX - lastX;
+    const deltaY = event.clientY - lastY;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    spherical.theta -= deltaX * 0.008;
+    spherical.phi = Math.max(0.38, Math.min(1.34, spherical.phi - deltaY * 0.006));
+    render();
+  });
+
+  const stopInteraction = (event) => {
+    if (event?.pointerId != null && canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+    active = null;
+    mode = "";
+    canvas.style.cursor = "grab";
+  };
+
+  canvas.addEventListener("pointerup", stopInteraction);
+  canvas.addEventListener("pointercancel", stopInteraction);
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    spherical.radius = Math.max(5, Math.min(Math.max(width, length) * 2.2, spherical.radius + event.deltaY * 0.015));
+    render();
+  }, { passive: false });
+
+  return render;
 }
 
 function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimensions), electricalPlan = getElectricalPlan({}), baseCaption = "") {
@@ -1801,14 +2130,8 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   doorMarker.position.set(doorCoords.x, 1.02, doorCoords.z);
   scene.add(doorMarker);
 
-  const itemData = [
-    { size: [width * 0.38, 0.62, length * 0.18], pos: [-width * 0.18, 0.35, length * 0.26] },
-    { size: [width * 0.16, 0.38, length * 0.14], pos: [width * 0.16, 0.24, length * 0.1] },
-    { size: [width * 0.14, 1.35, length * 0.28], pos: [width * 0.32, 0.74, -length * 0.18] },
-    { size: [width * 0.38, 0.08, length * 0.26], pos: [-width * 0.08, 0.05, length * 0.08] },
-    { size: [width * 0.18, 0.5, length * 0.16], pos: [-width * 0.34, 0.28, -length * 0.22] },
-    { size: [width * 0.2, 0.44, length * 0.16], pos: [width * 0.28, 0.27, length * 0.34] }
-  ];
+  const itemData = getDefaultItemData(width, length);
+  const draggableObjects = [];
 
   let loadedModelCount = 0;
   let failedModelCount = 0;
@@ -1826,17 +2149,21 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   };
 
   products.slice(0, itemData.length).forEach((product, index) => {
+    const placement = getProductPlacement(product, itemData[index], width, length);
     const item = {
       ...itemData[index],
+      pos: [placement.x, itemData[index].pos[1], placement.z],
       size: getOwnedFurnitureSize(product, itemData[index].size)
     };
     if (product.modelUrl) {
-      addRealModelObject(scene, product, item, THREE, renderer, camera).then((loaded) => {
-        if (loaded) {
+      addRealModelObject(scene, product, item, THREE, renderer, camera).then((object) => {
+        if (object) {
           loadedModelCount += 1;
+          draggableObjects.push({ product, object });
         } else {
           failedModelCount += 1;
-          addFurnitureObject(scene, product, item, THREE);
+          const fallbackObject = addFurnitureObject(scene, product, item, THREE);
+          draggableObjects.push({ product, object: fallbackObject });
           renderer.render(scene, camera);
         }
         updateModelCaption();
@@ -1844,7 +2171,8 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
       return;
     }
 
-    addFurnitureObject(scene, product, item, THREE);
+    const object = addFurnitureObject(scene, product, item, THREE);
+    draggableObjects.push({ product, object });
   });
 
   electricalPlan.outlets.slice(0, 8).forEach((outlet) => {
@@ -1855,21 +2183,22 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
     addCeilingLightObject(scene, ceilingLight, width, length, THREE);
   });
 
-  renderer.render(scene, camera);
+  const renderInteractiveModel = setup3DInteraction(canvas, renderer, scene, camera, products, draggableObjects, width, length, THREE);
+  renderInteractiveModel();
 }
 
 function renderRoomPreview(modelView, dimensions, products, roomShape = getRoomShape({}, dimensions), electricalPlan = getElectricalPlan({})) {
   roomDimensionsBadge.textContent = roomShape.label;
 
   if (modelView === "3d") {
-    const captionText = `3D model scaled from a ${roomShape.label} room, with the ${roomShape.doorLabel.toLowerCase()} door, outlets, ceiling lights, and extra spaces blocked in by footprint.`;
+    const captionText = `Interactive 3D model scaled from a ${roomShape.label} room, with the ${roomShape.doorLabel.toLowerCase()} door, outlets, ceiling lights, and extra spaces blocked in by footprint. Drag the room to change angles, or drag a furniture piece to place it.`;
     previewCaption.textContent = captionText;
     render3DModel(dimensions, products, roomShape, electricalPlan, captionText);
     return;
   }
 
   renderFloorPlan(dimensions, products, roomShape, electricalPlan);
-  previewCaption.textContent = `2D floor plan scaled from a ${roomShape.label} room, with door location, outlets, ceiling lights, and separate spaces called out for fit checks.`;
+  previewCaption.textContent = `2D floor plan scaled from a ${roomShape.label} room, with door location, outlets, ceiling lights, and separate spaces called out for fit checks. Drag furniture pieces to place them.`;
 }
 
 async function generateDesign(event) {
