@@ -179,7 +179,7 @@ h1 {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(290px, 390px) minmax(0, 1fr);
+  grid-template-columns: minmax(320px, 430px) minmax(0, 1fr);
   gap: 24px;
   align-items: start;
 }
@@ -194,10 +194,13 @@ h1 {
 
 .design-form {
   display: grid;
-  gap: 16px;
-  padding: 24px;
+  gap: 12px;
+  padding: 18px;
   position: sticky;
   top: 20px;
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .form-header h2,
@@ -207,6 +210,19 @@ h1 {
 
 .form-header p {
   color: var(--muted);
+}
+
+.form-section {
+  display: grid;
+  gap: 12px;
+}
+
+.primary-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid #e2d6c9;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
 }
 
 label {
@@ -306,9 +322,7 @@ button:disabled {
 
 .saved-rooms {
   display: grid;
-  gap: 12px;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
+  gap: 0;
 }
 
 .saved-rooms-header {
@@ -385,24 +399,86 @@ button:disabled {
   color: #3e342d;
 }
 
-.product-source {
-  display: grid;
-  gap: 12px;
-  border: 1px solid #e2d6c9;
-  border-radius: 8px;
-  background: #ffffff;
-  padding: 14px;
-}
-
+.product-source,
 .room-shape-section,
 .electrical-section,
 .owned-furniture-section {
   display: grid;
-  gap: 12px;
   border: 1px solid #e2d6c9;
   border-radius: 8px;
   background: #ffffff;
-  padding: 14px;
+}
+
+.form-panel {
+  overflow: hidden;
+}
+
+.form-panel summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.form-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.form-panel summary::after {
+  content: "+";
+  display: grid;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  background: #eadfce;
+  color: #3e342d;
+  font-weight: 900;
+}
+
+.form-panel[open] {
+  padding-bottom: 14px;
+}
+
+.form-panel[open] summary::after {
+  content: "-";
+}
+
+.form-panel summary span {
+  color: #2d2925;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.form-panel summary small {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.form-panel > label,
+.form-panel > .fixture-list,
+.form-panel > .extra-spaces,
+.form-panel > button,
+.form-panel > .source-note,
+.form-panel > .saved-room-list {
+  margin-inline: 14px;
+}
+
+.form-panel > label + label,
+.form-panel > label + .fixture-list,
+.form-panel > .fixture-list + button,
+.form-panel > button + .fixture-list,
+.form-panel > .extra-spaces + button,
+.form-panel > .source-note,
+.form-panel > .saved-room-list {
+  margin-top: 12px;
 }
 
 .room-shape-header {
@@ -1143,6 +1219,8 @@ li + li {
 
   .design-form {
     position: static;
+    max-height: none;
+    overflow: visible;
   }
 
   .results-panel {
@@ -1215,7 +1293,8 @@ li + li {
 
   .extra-space-row,
   .fixture-row,
-  .owned-furniture-row {
+  .owned-furniture-row,
+  .primary-fields {
     grid-template-columns: 1fr;
   }
 

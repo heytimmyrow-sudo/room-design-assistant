@@ -40,38 +40,71 @@ export default function Home() {
               <p>Enter what matters most, then generate a room plan.</p>
             </div>
 
-            <label htmlFor="roomType">
-              Room type
-              <input
-                type="text"
-                id="roomType"
-                name="roomType"
-                placeholder="Living room, bedroom, office..."
-                required
-              />
-            </label>
+            <section className="form-section primary-fields" aria-label="Main room details">
+              <label htmlFor="roomType">
+                Room type
+                <input
+                  type="text"
+                  id="roomType"
+                  name="roomType"
+                  placeholder="Living room, bedroom, office..."
+                  required
+                />
+              </label>
 
-            <label htmlFor="roomName">
-              Room name
-              <input
-                type="text"
-                id="roomName"
-                name="roomName"
-                placeholder="Guest bedroom, basement game room..."
-              />
-            </label>
+              <label htmlFor="designStyle">
+                Design style
+                <select id="designStyle" name="designStyle" required>
+                  <option value="">Choose a style</option>
+                  <option value="cozy">Cozy</option>
+                  <option value="modern">Modern</option>
+                  <option value="minimalist">Minimalist</option>
+                  <option value="luxury">Luxury</option>
+                  <option value="gaming">Gaming</option>
+                </select>
+              </label>
 
-            <label htmlFor="designStyle">
-              Design style
-              <select id="designStyle" name="designStyle" required>
-                <option value="">Choose a style</option>
-                <option value="cozy">Cozy</option>
-                <option value="modern">Modern</option>
-                <option value="minimalist">Minimalist</option>
-                <option value="luxury">Luxury</option>
-                <option value="gaming">Gaming</option>
-              </select>
-            </label>
+              <label htmlFor="dimensions">
+                Room dimensions
+                <input
+                  type="text"
+                  id="dimensions"
+                  name="dimensions"
+                  placeholder="12 x 14 ft"
+                />
+              </label>
+
+              <label htmlFor="budget">
+                Budget
+                <input
+                  type="number"
+                  id="budget"
+                  name="budget"
+                  min="0"
+                  step="50"
+                  inputMode="numeric"
+                  placeholder="1200"
+                />
+              </label>
+
+              <label htmlFor="roomName">
+                Room name
+                <input
+                  type="text"
+                  id="roomName"
+                  name="roomName"
+                  placeholder="Guest bedroom, basement game room..."
+                />
+              </label>
+
+              <label htmlFor="modelView">
+                Room model
+                <select id="modelView" name="modelView">
+                  <option value="2d">2D floor plan</option>
+                  <option value="3d">3D room model</option>
+                </select>
+              </label>
+            </section>
 
             <label htmlFor="favoriteColors">
               Favorite colors
@@ -83,34 +116,21 @@ export default function Home() {
               />
             </label>
 
-            <label htmlFor="budget">
-              Budget
-              <input
-                type="number"
-                id="budget"
-                name="budget"
-                min="0"
-                step="50"
-                inputMode="numeric"
-                placeholder="1200"
-              />
+            <label htmlFor="mustHaves">
+              Must-have items
+              <textarea
+                id="mustHaves"
+                name="mustHaves"
+                rows={3}
+                placeholder="Sectional sofa, standing desk, reading chair..."
+              ></textarea>
             </label>
 
-            <label htmlFor="dimensions">
-              Room dimensions
-              <input
-                type="text"
-                id="dimensions"
-                name="dimensions"
-                placeholder="12 x 14 ft"
-              />
-            </label>
-
-            <section className="room-shape-section" aria-labelledby="roomShapeTitle">
-              <div className="room-shape-header">
-                <h3 id="roomShapeTitle">Room Shape</h3>
-                <span>Optional</span>
-              </div>
+            <details className="room-shape-section form-panel">
+              <summary>
+                <span id="roomShapeTitle">Room Shape</span>
+                <small>Door and extra spaces</small>
+              </summary>
               <label htmlFor="doorLocation">
                 Door location
                 <select id="doorLocation" name="doorLocation">
@@ -164,13 +184,13 @@ export default function Home() {
               <button type="button" className="secondary-button add-space-button" id="addSpaceButton">
                 Add another space
               </button>
-            </section>
+            </details>
 
-            <section className="electrical-section" aria-labelledby="electricalTitle">
-              <div className="room-shape-header">
-                <h3 id="electricalTitle">Electrical</h3>
-                <span>Optional</span>
-              </div>
+            <details className="electrical-section form-panel">
+              <summary>
+                <span id="electricalTitle">Electrical</span>
+                <small>Outlets and ceiling lights</small>
+              </summary>
               <div className="fixture-list" id="outletList" aria-label="Electrical outlets">
                 <div className="fixture-row outlet-row">
                   <label>
@@ -228,31 +248,13 @@ export default function Home() {
               <button type="button" className="secondary-button add-space-button" id="addCeilingLightButton">
                 Add ceiling light
               </button>
-            </section>
+            </details>
 
-            <label htmlFor="modelView">
-              Room model
-              <select id="modelView" name="modelView">
-                <option value="2d">2D floor plan</option>
-                <option value="3d">3D room model</option>
-              </select>
-            </label>
-
-            <label htmlFor="mustHaves">
-              Must-have items
-              <textarea
-                id="mustHaves"
-                name="mustHaves"
-                rows={4}
-                placeholder="Sectional sofa, standing desk, reading chair..."
-              ></textarea>
-            </label>
-
-            <section className="owned-furniture-section" aria-labelledby="ownedFurnitureTitle">
-              <div className="room-shape-header">
-                <h3 id="ownedFurnitureTitle">Furniture You Already Have</h3>
-                <span>Optional</span>
-              </div>
+            <details className="owned-furniture-section form-panel">
+              <summary>
+                <span id="ownedFurnitureTitle">Furniture You Already Have</span>
+                <small>Existing pieces and sizes</small>
+              </summary>
               <div className="fixture-list" id="ownedFurnitureList" aria-label="Furniture already owned">
                 <div className="owned-furniture-row">
                   <label>
@@ -294,35 +296,35 @@ export default function Home() {
               <button type="button" className="secondary-button add-space-button" id="addOwnedFurnitureButton">
                 Add owned furniture
               </button>
-            </section>
+            </details>
 
-            <label htmlFor="furnitureLinks">
-              Furniture links
-              <textarea
-                id="furnitureLinks"
-                name="furnitureLinks"
-                rows={4}
-                placeholder="Paste furniture product or image links, one per line..."
-              ></textarea>
-            </label>
-
-            <label htmlFor="modelLinks">
-              3D model links
-              <textarea
-                id="modelLinks"
-                name="modelLinks"
-                rows={3}
-                placeholder="Paste .glb or .gltf model links, one per line..."
-              ></textarea>
-            </label>
-
-            <section className="product-source" aria-labelledby="productSourceTitle">
-              <div className="product-source-header">
-                <h3 id="productSourceTitle">Product Source</h3>
-                <span id="productSourceStatus" aria-live="polite">
+            <details className="product-source form-panel">
+              <summary>
+                <span id="productSourceTitle">Furniture Links</span>
+                <small id="productSourceStatus" aria-live="polite">
                   Search links active
-                </span>
-              </div>
+                </small>
+              </summary>
+              <label htmlFor="furnitureLinks">
+                Furniture links
+                <textarea
+                  id="furnitureLinks"
+                  name="furnitureLinks"
+                  rows={3}
+                  placeholder="Paste furniture product or image links, one per line..."
+                ></textarea>
+              </label>
+
+              <label htmlFor="modelLinks">
+                3D model links
+                <textarea
+                  id="modelLinks"
+                  name="modelLinks"
+                  rows={2}
+                  placeholder="Paste .glb or .gltf model links, one per line..."
+                ></textarea>
+              </label>
+
               <label htmlFor="productSource">
                 Exact product matching
                 <select id="productSource" name="productSource">
@@ -342,7 +344,7 @@ export default function Home() {
               <p className="source-note">
                 Without a product API key, generated items use shopping search links.
               </p>
-            </section>
+            </details>
 
             <label className="checkbox-row" htmlFor="addStoreLinks">
               <input
@@ -367,15 +369,15 @@ export default function Home() {
               Save Room Plan
             </button>
 
-            <section className="saved-rooms" aria-labelledby="savedRoomsTitle">
-              <div className="saved-rooms-header">
-                <h3 id="savedRoomsTitle">Saved Rooms</h3>
+            <details className="saved-rooms form-panel">
+              <summary>
+                <span id="savedRoomsTitle">Saved Rooms</span>
                 <span id="saveStatus" aria-live="polite"></span>
-              </div>
+              </summary>
               <div className="saved-room-list" id="savedRoomList">
                 <p className="saved-empty">No saved rooms yet.</p>
               </div>
-            </section>
+            </details>
           </form>
 
           <section
