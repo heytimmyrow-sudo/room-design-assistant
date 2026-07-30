@@ -268,7 +268,7 @@ export default function Home() {
                     <input
                       type="text"
                       name="ownedFurnitureDimensions"
-                      placeholder="78 x 35 in or 6 x 3 ft"
+                      placeholder="width x depth x height, like 78 x 35 x 32 in"
                     />
                   </label>
                   <label>

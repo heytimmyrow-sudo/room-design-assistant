@@ -343,7 +343,7 @@ function createOwnedFurnitureRow(item = {}) {
     </label>
     <label>
       Dimensions
-      <input type="text" name="ownedFurnitureDimensions" placeholder="78 x 35 in or 6 x 3 ft">
+      <input type="text" name="ownedFurnitureDimensions" placeholder="width x depth x height, like 78 x 35 x 32 in">
     </label>
     <label>
       Type
@@ -1518,10 +1518,12 @@ function getOwnedFurnitureSize(product, fallbackSize) {
   const isInches = /in|inch/i.test(product.size);
   const first = isInches ? numbers[0] / 12 : numbers[0];
   const second = isInches ? numbers[1] / 12 : numbers[1];
+  const third = numbers[2] ? (isInches ? numbers[2] / 12 : numbers[2]) : fallbackSize[1];
   const width = Math.max(1.1, Math.min(fallbackSize[0] * 1.25, first));
   const depth = Math.max(0.8, Math.min(fallbackSize[2] * 1.25, second));
+  const height = Math.max(0.12, Math.min(3, third));
 
-  return [width, fallbackSize[1], depth];
+  return [width, height, depth];
 }
 
 function getWallOffset(position, size) {
