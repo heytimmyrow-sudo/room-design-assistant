@@ -889,7 +889,7 @@ function buildBudgetSummary(products, budget) {
 }
 
 function getProductFootprint(product, fallbackItem) {
-  const size = getOwnedFurnitureSize(product, fallbackItem.size);
+  const size = getOwnedFurnitureSize(product, getFallbackSizeForProduct(product, fallbackItem.size));
   const scale = product.scale || 1;
   const rotated = Math.abs((product.rotation || 0) % 180) === 90;
   const width = size[0] * scale;
@@ -1864,15 +1864,36 @@ function showSuggestedAddOns(snapshot) {
 
 function getDefaultItemData(width, length) {
   return [
-    { size: [width * 0.38, 0.62, length * 0.18], pos: [-width * 0.18, 0.35, length * 0.26] },
-    { size: [width * 0.16, 0.38, length * 0.14], pos: [width * 0.16, 0.24, length * 0.1] },
-    { size: [width * 0.14, 1.35, length * 0.28], pos: [width * 0.32, 0.74, -length * 0.18] },
+    { size: [width * 0.38, 2.6, length * 0.18], pos: [-width * 0.18, 1.3, length * 0.26] },
+    { size: [width * 0.16, 2.7, length * 0.14], pos: [width * 0.16, 1.35, length * 0.1] },
+    { size: [width * 0.14, 5.4, length * 0.28], pos: [width * 0.32, 2.7, -length * 0.18] },
     { size: [width * 0.38, 0.08, length * 0.26], pos: [-width * 0.08, 0.05, length * 0.08] },
-    { size: [width * 0.18, 0.5, length * 0.16], pos: [-width * 0.34, 0.28, -length * 0.22] },
-    { size: [width * 0.2, 0.44, length * 0.16], pos: [width * 0.28, 0.27, length * 0.34] },
-    { size: [width * 0.16, 0.5, length * 0.14], pos: [width * 0.34, 0.28, -length * 0.36] },
-    { size: [width * 0.14, 0.52, length * 0.14], pos: [-width * 0.36, 0.29, length * 0.36] }
+    { size: [width * 0.18, 2.4, length * 0.16], pos: [-width * 0.34, 1.2, -length * 0.22] },
+    { size: [width * 0.2, 2.2, length * 0.16], pos: [width * 0.28, 1.1, length * 0.34] },
+    { size: [width * 0.16, 4.8, length * 0.14], pos: [width * 0.34, 2.4, -length * 0.36] },
+    { size: [width * 0.14, 5.2, length * 0.14], pos: [-width * 0.36, 2.6, length * 0.36] }
   ];
+}
+
+function getDefaultHeightForShape(shape) {
+  const heights = {
+    seat: 2.7,
+    chair: 3,
+    desk: 2.5,
+    bed: 2.9,
+    electronics: 3.2,
+    table: 1.9,
+    rug: 0.08,
+    light: 5.5,
+    storage: 4.6
+  };
+
+  return heights[shape] || heights.storage;
+}
+
+function getFallbackSizeForProduct(product, fallbackSize) {
+  const height = getDefaultHeightForShape(product.shape);
+  return [fallbackSize[0], height, fallbackSize[2]];
 }
 
 function getProductPlacement(product, fallbackItem, width, length) {
@@ -2757,7 +2778,7 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
     const item = {
       ...itemData[index],
       pos: [placement.x, itemData[index].pos[1], placement.z],
-      size: getOwnedFurnitureSize(product, itemData[index].size).map((value) => value * (product.scale || 1))
+      size: getOwnedFurnitureSize(product, getFallbackSizeForProduct(product, itemData[index].size)).map((value) => value * (product.scale || 1))
     };
     if (product.modelUrl) {
       addRealModelObject(scene, product, item, THREE, renderer, camera).then((object) => {
