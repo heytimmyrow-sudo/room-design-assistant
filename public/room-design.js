@@ -24,6 +24,8 @@ const outletList = document.querySelector("#outletList");
 const addOutletButton = document.querySelector("#addOutletButton");
 const ceilingLightList = document.querySelector("#ceilingLightList");
 const addCeilingLightButton = document.querySelector("#addCeilingLightButton");
+const ownedFurnitureList = document.querySelector("#ownedFurnitureList");
+const addOwnedFurnitureButton = document.querySelector("#addOwnedFurnitureButton");
 
 const STORAGE_KEY = "roomDesignAssistant.savedRooms";
 const PRODUCT_SETTINGS_KEY = "roomDesignAssistant.productSettings";
@@ -331,6 +333,59 @@ function resetCeilingLightRows(lights = [{}]) {
   rows.forEach((light) => ceilingLightList.appendChild(createCeilingLightRow(light)));
 }
 
+function createOwnedFurnitureRow(item = {}) {
+  const row = document.createElement("div");
+  row.className = "owned-furniture-row";
+  row.innerHTML = `
+    <label>
+      Item name
+      <input type="text" name="ownedFurnitureName" placeholder="Blue sofa, white desk, TV stand...">
+    </label>
+    <label>
+      Dimensions
+      <input type="text" name="ownedFurnitureDimensions" placeholder="78 x 35 in or 6 x 3 ft">
+    </label>
+    <label>
+      Type
+      <select name="ownedFurnitureType">
+        <option value="auto">Auto-detect</option>
+        <option value="seat">Sofa / bench</option>
+        <option value="chair">Chair</option>
+        <option value="desk">Desk</option>
+        <option value="table">Table</option>
+        <option value="bed">Bed</option>
+        <option value="storage">Storage</option>
+        <option value="electronics">TV / computer</option>
+        <option value="rug">Rug</option>
+        <option value="light">Lamp</option>
+      </select>
+    </label>
+    <button type="button" class="remove-space-button" aria-label="Remove this owned furniture item">Remove</button>
+  `;
+
+  row.querySelector('[name="ownedFurnitureName"]').value = item.name || "";
+  row.querySelector('[name="ownedFurnitureDimensions"]').value = item.dimensions || "";
+  row.querySelector('[name="ownedFurnitureType"]').value = item.type || "auto";
+  row.querySelector(".remove-space-button").addEventListener("click", () => {
+    if (ownedFurnitureList.children.length > 1) {
+      row.remove();
+      return;
+    }
+
+    row.querySelector('[name="ownedFurnitureName"]').value = "";
+    row.querySelector('[name="ownedFurnitureDimensions"]').value = "";
+    row.querySelector('[name="ownedFurnitureType"]').value = "auto";
+  });
+
+  return row;
+}
+
+function resetOwnedFurnitureRows(items = [{}]) {
+  ownedFurnitureList.innerHTML = "";
+  const rows = items.length ? items : [{}];
+  rows.forEach((item) => ownedFurnitureList.appendChild(createOwnedFurnitureRow(item)));
+}
+
 function getExtraSpaceValues(formData) {
   const names = formData.getAll("extraSpaceName");
   const dimensions = formData.getAll("extraSpaceDimensions");
@@ -365,6 +420,20 @@ function getCeilingLightValues(formData) {
   }));
 }
 
+function getOwnedFurnitureValues(formData) {
+  const names = formData.getAll("ownedFurnitureName");
+  const dimensions = formData.getAll("ownedFurnitureDimensions");
+  const types = formData.getAll("ownedFurnitureType");
+
+  return names
+    .map((name, index) => ({
+      name: String(name || "").trim(),
+      dimensions: String(dimensions[index] || "").trim(),
+      type: String(types[index] || "auto")
+    }))
+    .filter((item) => item.name || item.dimensions);
+}
+
 function getFormValues() {
   const formData = new FormData(designForm);
 
@@ -380,6 +449,7 @@ function getFormValues() {
     extraSpaces: getExtraSpaceValues(formData),
     outlets: getOutletValues(formData),
     ceilingLights: getCeilingLightValues(formData),
+    ownedFurniture: getOwnedFurnitureValues(formData),
     modelView: formData.get("modelView"),
     mustHaves: formData.get("mustHaves").trim(),
     furnitureLinks: formData.get("furnitureLinks").trim(),
@@ -394,9 +464,10 @@ function setFormValues(values) {
   resetExtraSpaceRows(values.extraSpaces || [{}]);
   resetOutletRows(values.outlets || [{}]);
   resetCeilingLightRows(values.ceilingLights || [{}]);
+  resetOwnedFurnitureRows(values.ownedFurniture || [{}]);
 
   Object.entries(values).forEach(([key, value]) => {
-    if (key === "extraSpaces" || key === "outlets" || key === "ceilingLights") {
+    if (key === "extraSpaces" || key === "outlets" || key === "ceilingLights" || key === "ownedFurniture") {
       return;
     }
 
@@ -644,7 +715,9 @@ function buildChecklist(budgetTier, mustHaves, products) {
     ]
   };
 
-  const productChecks = products.map((product) => `Measure for: ${product.name} (${product.size})`);
+  const productChecks = products.map((product) => product.owned
+    ? `Place owned item: ${product.name} (${product.size})`
+    : `Measure for: ${product.name} (${product.size})`);
   const mustHaveItems = mustHaves.length
     ? mustHaves.slice(0, 2).map((item) => `Confirm the must-have item: ${item}`)
     : ["Confirm the largest furniture piece before buying"];
@@ -716,6 +789,31 @@ function makeExactGeneratedProduct(match, fallback, color, shape) {
   };
 }
 
+function makeOwnedProducts(ownedFurniture) {
+  const colors = ["#64748b", "#52796f", "#8a6f52", "#76563d", "#6f7558"];
+
+  return ownedFurniture.slice(0, 5).map((item, index) => {
+    const shape = item.type && item.type !== "auto"
+      ? item.type
+      : inferShapeFromLink(item.name, index);
+
+    return {
+      name: item.name || `Owned furniture ${index + 1}`,
+      description: "Furniture you already have. Keep it in the plan and check placement before buying anything new.",
+      size: item.dimensions || "measure existing piece",
+      price: "already owned",
+      color: colors[index % colors.length],
+      shape,
+      sourceUrl: "",
+      imageUrl: "",
+      imported: false,
+      owned: true,
+      searchLink: false,
+      exactGenerated: false
+    };
+  });
+}
+
 function attachModelLinks(products, modelLinks) {
   const validModelLinks = modelLinks.filter(isModelUrl);
 
@@ -725,7 +823,7 @@ function attachModelLinks(products, modelLinks) {
   }));
 }
 
-async function makeProducts(plan, mustHaves, furnitureLinks, productSettings, modelLinks = []) {
+async function makeProducts(plan, mustHaves, furnitureLinks, productSettings, modelLinks = [], ownedFurniture = []) {
   const shouldAddLinks = productSettings.addStoreLinks !== false;
   const generatedBases = plan.products.map(([name, description, size, price, color, shape]) => ({
     name,
@@ -794,7 +892,9 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings, mo
     products.push(shouldAddLinks ? searchProduct : { ...searchProduct, sourceUrl: "", searchLink: false });
   });
 
-  return attachModelLinks([...normalizedImportedProducts, ...products].slice(0, 8), modelLinks);
+  const ownedProducts = makeOwnedProducts(ownedFurniture);
+
+  return attachModelLinks([...ownedProducts, ...normalizedImportedProducts, ...products].slice(0, 8), modelLinks);
 }
 
 function addListItems(container, items) {
@@ -887,6 +987,7 @@ function buildSnapshot(formValues, products) {
   const mustHaves = splitList(formValues.mustHaves);
   const roomLabel = formValues.roomType || "Room";
   const importedCount = products.filter((product) => product.imported).length;
+  const ownedCount = products.filter((product) => product.owned).length;
   const roomShape = getRoomShape(formValues, dimensions);
   const electricalPlan = getElectricalPlan(formValues);
 
@@ -894,8 +995,8 @@ function buildSnapshot(formValues, products) {
     formValues,
     products,
     title: `${plan.titleWord} ${roomLabel} Design`,
-    description: `${plan.description} For a ${roomShape.label} room, pick pieces that match each zone before buying. Door placement: ${roomShape.summary}. Electrical plan: ${electricalPlan.summary}.${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`,
-    layout: `${plan.layout} Keep the ${roomShape.doorLabel.toLowerCase()} wall door path open${roomShape.spaces.length ? `, then use ${roomShape.spaces[0].name} as a separate zone when possible` : ""}. Keep desks, lamps, media consoles, and gaming gear near marked outlets. Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`,
+    description: `${plan.description} For a ${roomShape.label} room, pick pieces that match each zone before buying. Door placement: ${roomShape.summary}. Electrical plan: ${electricalPlan.summary}.${ownedCount ? ` ${ownedCount} item${ownedCount === 1 ? "" : "s"} you already have are included first, with their dimensions.` : ""}${importedCount ? ` ${importedCount} imported furniture object${importedCount === 1 ? "" : "s"} from your links are included in the plan and room model.` : ""}`,
+    layout: `${plan.layout} Keep the ${roomShape.doorLabel.toLowerCase()} wall door path open${roomShape.spaces.length ? `, then use ${roomShape.spaces[0].name} as a separate zone when possible` : ""}. Keep desks, lamps, media consoles, and gaming gear near marked outlets. Place owned furniture first, then buy only the pieces that fill the gaps. Start with ${products[0].name}, then place ${mustHaves[0] || products[1].name} where it keeps walkways open.`,
     palette: plan.palette,
     decor: plan.decor,
     checklist: buildChecklist(getBudgetTier(Number(formValues.budget)), mustHaves, products),
@@ -1100,6 +1201,13 @@ function showProducts(products) {
       imported.className = "imported-tag";
       imported.textContent = product.previewBlocked ? "Open link to verify" : "Store item";
       meta.appendChild(imported);
+    }
+
+    if (product.owned) {
+      const owned = document.createElement("span");
+      owned.className = "owned-tag";
+      owned.textContent = "Already owned";
+      meta.appendChild(owned);
     }
 
     if (product.exactGenerated) {
@@ -1394,6 +1502,26 @@ function addRoomBox(scene, mesh, THREE, edgeColor = 0x8f7f70) {
   mesh.receiveShadow = true;
   scene.add(mesh);
   addEdgeLines(mesh, THREE, edgeColor);
+}
+
+function getOwnedFurnitureSize(product, fallbackSize) {
+  if (!product.owned) {
+    return fallbackSize;
+  }
+
+  const numbers = product.size.match(/\d+(\.\d+)?/g)?.map(Number) || [];
+
+  if (numbers.length < 2) {
+    return fallbackSize;
+  }
+
+  const isInches = /in|inch/i.test(product.size);
+  const first = isInches ? numbers[0] / 12 : numbers[0];
+  const second = isInches ? numbers[1] / 12 : numbers[1];
+  const width = Math.max(1.1, Math.min(fallbackSize[0] * 1.25, first));
+  const depth = Math.max(0.8, Math.min(fallbackSize[2] * 1.25, second));
+
+  return [width, fallbackSize[1], depth];
 }
 
 function getWallOffset(position, size) {
@@ -1696,7 +1824,10 @@ function render3DModel(dimensions, products, roomShape = getRoomShape({}, dimens
   };
 
   products.slice(0, itemData.length).forEach((product, index) => {
-    const item = itemData[index];
+    const item = {
+      ...itemData[index],
+      size: getOwnedFurnitureSize(product, itemData[index].size)
+    };
     if (product.modelUrl) {
       addRealModelObject(scene, product, item, THREE, renderer, camera).then((loaded) => {
         if (loaded) {
@@ -1760,7 +1891,7 @@ async function generateDesign(event) {
   const mustHaves = splitList(formValues.mustHaves);
   const furnitureLinks = splitLinks(formValues.furnitureLinks);
   const modelLinks = splitLinks(formValues.modelLinks).filter(isModelUrl);
-  const products = await makeProducts(plan, mustHaves, furnitureLinks, productSettings, modelLinks);
+  const products = await makeProducts(plan, mustHaves, furnitureLinks, productSettings, modelLinks, formValues.ownedFurniture);
 
   renderSnapshot(buildSnapshot(formValues, products));
   renderSavedRooms();
@@ -1794,6 +1925,7 @@ function resetDesign() {
   resetExtraSpaceRows();
   resetOutletRows();
   resetCeilingLightRows();
+  resetOwnedFurnitureRows();
   renderSavedRooms();
 }
 
@@ -1808,6 +1940,9 @@ addOutletButton.addEventListener("click", () => {
 });
 addCeilingLightButton.addEventListener("click", () => {
   ceilingLightList.appendChild(createCeilingLightRow());
+});
+addOwnedFurnitureButton.addEventListener("click", () => {
+  ownedFurnitureList.appendChild(createOwnedFurnitureRow());
 });
 designForm.elements.namedItem("productSource").addEventListener("change", () => {
   setProductSettings({
@@ -1827,5 +1962,6 @@ designForm.elements.namedItem("addStoreLinks").addEventListener("change", update
 resetExtraSpaceRows();
 resetOutletRows();
 resetCeilingLightRows();
+resetOwnedFurnitureRows();
 restoreProductSettings();
 renderSavedRooms();

@@ -395,7 +395,8 @@ button:disabled {
 }
 
 .room-shape-section,
-.electrical-section {
+.electrical-section,
+.owned-furniture-section {
   display: grid;
   gap: 12px;
   border: 1px solid #e2d6c9;
@@ -429,7 +430,8 @@ button:disabled {
 }
 
 .extra-space-row,
-.fixture-row {
+.fixture-row,
+.owned-furniture-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
   gap: 10px;
@@ -446,7 +448,9 @@ button:disabled {
 
 .extra-space-row label,
 .fixture-row label,
+.owned-furniture-row label,
 .fixture-row .remove-space-button,
+.owned-furniture-row .remove-space-button,
 .extra-space-row .remove-space-button {
   min-width: 0;
 }
@@ -1083,6 +1087,11 @@ li + li {
   color: var(--accent-dark);
 }
 
+.product-meta .owned-tag {
+  background: rgba(100, 116, 139, 0.16);
+  color: #334155;
+}
+
 .store-link {
   display: inline-flex;
   width: fit-content;
@@ -1193,7 +1202,8 @@ li + li {
   }
 
   .extra-space-row,
-  .fixture-row {
+  .fixture-row,
+  .owned-furniture-row {
     grid-template-columns: 1fr;
   }
 

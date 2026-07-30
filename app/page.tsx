@@ -248,6 +248,54 @@ export default function Home() {
               ></textarea>
             </label>
 
+            <section className="owned-furniture-section" aria-labelledby="ownedFurnitureTitle">
+              <div className="room-shape-header">
+                <h3 id="ownedFurnitureTitle">Furniture You Already Have</h3>
+                <span>Optional</span>
+              </div>
+              <div className="fixture-list" id="ownedFurnitureList" aria-label="Furniture already owned">
+                <div className="owned-furniture-row">
+                  <label>
+                    Item name
+                    <input
+                      type="text"
+                      name="ownedFurnitureName"
+                      placeholder="Blue sofa, white desk, TV stand..."
+                    />
+                  </label>
+                  <label>
+                    Dimensions
+                    <input
+                      type="text"
+                      name="ownedFurnitureDimensions"
+                      placeholder="78 x 35 in or 6 x 3 ft"
+                    />
+                  </label>
+                  <label>
+                    Type
+                    <select name="ownedFurnitureType">
+                      <option value="auto">Auto-detect</option>
+                      <option value="seat">Sofa / bench</option>
+                      <option value="chair">Chair</option>
+                      <option value="desk">Desk</option>
+                      <option value="table">Table</option>
+                      <option value="bed">Bed</option>
+                      <option value="storage">Storage</option>
+                      <option value="electronics">TV / computer</option>
+                      <option value="rug">Rug</option>
+                      <option value="light">Lamp</option>
+                    </select>
+                  </label>
+                  <button type="button" className="remove-space-button" aria-label="Remove this owned furniture item">
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <button type="button" className="secondary-button add-space-button" id="addOwnedFurnitureButton">
+                Add owned furniture
+              </button>
+            </section>
+
             <label htmlFor="furnitureLinks">
               Furniture links
               <textarea
