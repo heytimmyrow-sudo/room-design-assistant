@@ -1529,6 +1529,7 @@ function renderPlacementTools(snapshot) {
     return;
   }
 
+  const previousValue = selectedFurniture.value;
   selectedFurniture.innerHTML = "";
   snapshot.products.slice(0, MAX_MODEL_PRODUCTS).forEach((product, index) => {
     const option = document.createElement("option");
@@ -1536,6 +1537,10 @@ function renderPlacementTools(snapshot) {
     option.textContent = `${index + 1}. ${product.name}`;
     selectedFurniture.appendChild(option);
   });
+
+  if (previousValue && snapshot.products.some((product) => product.id === previousValue)) {
+    selectedFurniture.value = previousValue;
+  }
 }
 
 function getSelectedProduct() {
@@ -1567,6 +1572,15 @@ function downloadTextFile(filename, text, type = "text/plain") {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function exportRoomImage() {
@@ -1615,7 +1629,7 @@ function exportRoomPdf() {
   printWindow.document.write(`
     <html>
       <head>
-        <title>${currentSnapshot.title}</title>
+        <title>${escapeHtml(currentSnapshot.title)}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 32px; color: #222; line-height: 1.5; }
           h1 { margin-bottom: 8px; }
@@ -1624,16 +1638,16 @@ function exportRoomPdf() {
         </style>
       </head>
       <body>
-        <h1>${currentSnapshot.title}</h1>
-        <p>${currentSnapshot.description}</p>
+        <h1>${escapeHtml(currentSnapshot.title)}</h1>
+        <p>${escapeHtml(currentSnapshot.description)}</p>
         <h2>Furniture</h2>
-        <ul>${currentSnapshot.products.map((product) => `<li>${product.name}: ${product.size}, ${product.price}</li>`).join("")}</ul>
+        <ul>${currentSnapshot.products.map((product) => `<li>${escapeHtml(product.name)}: ${escapeHtml(product.size)}, ${escapeHtml(product.price)}</li>`).join("")}</ul>
         <h2>Budget</h2>
-        <p>Estimated total: $${(currentSnapshot.budgetSummary?.plannedTotal || 0).toLocaleString()} - ${currentSnapshot.budgetSummary?.status || ""}</p>
+        <p>Estimated total: $${(currentSnapshot.budgetSummary?.plannedTotal || 0).toLocaleString()} - ${escapeHtml(currentSnapshot.budgetSummary?.status || "")}</p>
         <h2>Fit Warnings</h2>
-        <ul>${(currentSnapshot.warnings || []).map((warning) => `<li>${warning}</li>`).join("")}</ul>
+        <ul>${(currentSnapshot.warnings || []).map((warning) => `<li>${escapeHtml(warning)}</li>`).join("")}</ul>
         <h2>Layout</h2>
-        <p>${currentSnapshot.layout}</p>
+        <p>${escapeHtml(currentSnapshot.layout)}</p>
       </body>
     </html>
   `);
@@ -1875,6 +1889,44 @@ function setProductPlacement(product, x, z, width, length) {
   product.placement = getProductPlacement({ placement: { x, z } }, { pos: [x, 0, z] }, width, length);
 }
 
+function safelyCapturePointer(element, pointerId) {
+  if (pointerId == null || typeof element.setPointerCapture !== "function") {
+    return;
+  }
+
+  try {
+    element.setPointerCapture(pointerId);
+  } catch {
+    // Some embedded browsers expose pointer events without capture support.
+  }
+}
+
+function safelyReleasePointer(element, pointerId) {
+  if (pointerId == null || typeof element.releasePointerCapture !== "function") {
+    return;
+  }
+
+  try {
+    if (typeof element.hasPointerCapture !== "function" || element.hasPointerCapture(pointerId)) {
+      element.releasePointerCapture(pointerId);
+    }
+  } catch {
+    // Ignore stale pointer captures after cancelled drags.
+  }
+}
+
+function safelyHasPointer(element, pointerId) {
+  if (pointerId == null || typeof element.hasPointerCapture !== "function") {
+    return true;
+  }
+
+  try {
+    return element.hasPointerCapture(pointerId);
+  } catch {
+    return false;
+  }
+}
+
 function getWallPositionClass(position) {
   return position === "left" ? "left-pos" : position === "right" ? "right-pos" : "center-pos";
 }
@@ -2020,7 +2072,7 @@ function attachFloorItemDrag(item, product, plan, dimensions) {
       selectedFurniture.value = product.id;
     }
     isDragging = true;
-    item.setPointerCapture(event.pointerId);
+    safelyCapturePointer(item, event.pointerId);
     moveItem(event);
   });
 
@@ -2036,7 +2088,7 @@ function attachFloorItemDrag(item, product, plan, dimensions) {
     }
 
     isDragging = false;
-    item.releasePointerCapture(event.pointerId);
+    safelyReleasePointer(item, event.pointerId);
     item.classList.remove("is-dragging");
   });
 
@@ -2059,11 +2111,11 @@ function attachFloorItemResize(handle, item, product) {
     startScale = product.scale || 1;
     startWidth = parseFloat(item.style.width);
     startHeight = parseFloat(item.style.height);
-    handle.setPointerCapture(event.pointerId);
+    safelyCapturePointer(handle, event.pointerId);
   });
 
   handle.addEventListener("pointermove", (event) => {
-    if (!handle.hasPointerCapture(event.pointerId)) {
+    if (!safelyHasPointer(handle, event.pointerId)) {
       return;
     }
 
@@ -2074,9 +2126,7 @@ function attachFloorItemResize(handle, item, product) {
   });
 
   handle.addEventListener("pointerup", (event) => {
-    if (handle.hasPointerCapture(event.pointerId)) {
-      handle.releasePointerCapture(event.pointerId);
-    }
+    safelyReleasePointer(handle, event.pointerId);
 
     if (currentSnapshot) {
       currentSnapshot.warnings = buildFitWarnings(currentSnapshot.products, currentSnapshot.dimensions, currentSnapshot.roomShape);
@@ -2528,7 +2578,7 @@ function setup3DInteraction(canvas, renderer, scene, camera, products, draggable
     lastY = event.clientY;
     active = findDraggedObject(event);
     mode = active ? "move" : "orbit";
-    canvas.setPointerCapture(event.pointerId);
+    safelyCapturePointer(canvas, event.pointerId);
     canvas.style.cursor = mode === "move" ? "grabbing" : "move";
 
     if (mode === "move") {
@@ -2556,9 +2606,7 @@ function setup3DInteraction(canvas, renderer, scene, camera, products, draggable
   });
 
   const stopInteraction = (event) => {
-    if (event?.pointerId != null && canvas.hasPointerCapture(event.pointerId)) {
-      canvas.releasePointerCapture(event.pointerId);
-    }
+    safelyReleasePointer(canvas, event?.pointerId);
     active = null;
     mode = "";
     canvas.style.cursor = "grab";
