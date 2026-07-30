@@ -470,11 +470,27 @@ function titleFromLink(value, index) {
 function inferShapeFromLink(value, index) {
   const text = value.toLowerCase();
 
-  if (/sofa|couch|chair|loveseat|sectional|bench/.test(text)) {
+  if (/monitor|computer|pc|screen|tv|display|console|speaker|keyboard/.test(text)) {
+    return "electronics";
+  }
+
+  if (/desk|workstation|writing table|gaming table/.test(text)) {
+    return "desk";
+  }
+
+  if (/bed|mattress|daybed|bunk/.test(text)) {
+    return "bed";
+  }
+
+  if (/chair|stool|recliner|ottoman/.test(text)) {
+    return "chair";
+  }
+
+  if (/sofa|couch|loveseat|sectional|bench/.test(text)) {
     return "seat";
   }
 
-  if (/table|desk|stand|nightstand|console/.test(text)) {
+  if (/table|stand|nightstand|coffee table|side table/.test(text)) {
     return "table";
   }
 
@@ -490,7 +506,7 @@ function inferShapeFromLink(value, index) {
     return "storage";
   }
 
-  return ["seat", "table", "storage", "rug", "light"][index % 5];
+  return ["seat", "desk", "storage", "rug", "chair"][index % 5];
 }
 
 async function fetchProductPreview(link) {
@@ -752,7 +768,7 @@ async function makeProducts(plan, mustHaves, furnitureLinks, productSettings, mo
     size: "verify exact fit",
     price: "price compare",
     color: "#8a8f67",
-    shape: "storage"
+    shape: inferShapeFromLink(item, 0)
   }));
   const mustHaveMatches = await Promise.all(
     mustHaveBases.map((product) => shouldAddLinks ? fetchExactProduct(product.query, productSettings) : null)
@@ -1242,6 +1258,8 @@ function addFurnitureObject(scene, product, item, THREE) {
     metalness: product.imported ? 0.08 : 0
   });
   const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x49392e, roughness: 0.7 });
+  const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x2f3437, roughness: 0.5, metalness: 0.18 });
+  const screenMaterial = new THREE.MeshStandardMaterial({ color: 0x1d2933, emissive: 0x12364a, emissiveIntensity: 0.18, roughness: 0.35 });
 
   if (product.shape === "seat") {
     const base = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.48, item.size[2]), material);
@@ -1257,6 +1275,55 @@ function addFurnitureObject(scene, product, item, THREE) {
     rightArm.position.set(item.size[0] * 0.46, item.size[1] * 0.34, 0);
     cushion.position.y = item.size[1] * 0.48;
     group.add(base, back, leftArm, rightArm, cushion);
+  } else if (product.shape === "chair") {
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.55, item.size[1] * 0.18, item.size[2] * 0.55), material);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.55, item.size[1] * 0.72, item.size[2] * 0.08), material);
+    seat.position.y = item.size[1] * 0.42;
+    back.position.set(0, item.size[1] * 0.72, -item.size[2] * 0.28);
+    group.add(seat, back);
+
+    [-0.2, 0.2].forEach((x) => {
+      [-0.2, 0.2].forEach((z) => {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, item.size[1] * 0.42, 12), darkMaterial);
+        leg.position.set(item.size[0] * x, item.size[1] * 0.2, item.size[2] * z);
+        group.add(leg);
+      });
+    });
+  } else if (product.shape === "desk") {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.14, item.size[2]), material);
+    const modesty = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.75, item.size[1] * 0.28, item.size[2] * 0.05), darkMaterial);
+    top.position.y = item.size[1] * 0.78;
+    modesty.position.set(0, item.size[1] * 0.52, -item.size[2] * 0.35);
+    group.add(top, modesty);
+
+    [-0.42, 0.42].forEach((x) => {
+      [-0.35, 0.35].forEach((z) => {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.055, item.size[1] * 0.72, item.size[2] * 0.055), metalMaterial);
+        leg.position.set(item.size[0] * x, item.size[1] * 0.36, item.size[2] * z);
+        group.add(leg);
+      });
+    });
+  } else if (product.shape === "bed") {
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.25, item.size[2]), darkMaterial);
+    const mattress = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.9, item.size[1] * 0.18, item.size[2] * 0.86), material);
+    const headboard = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.8, item.size[2] * 0.08), darkMaterial);
+    const pillow = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.36, item.size[1] * 0.12, item.size[2] * 0.18), new THREE.MeshStandardMaterial({ color: 0xf8f7f2, roughness: 0.8 }));
+    frame.position.y = item.size[1] * 0.18;
+    mattress.position.y = item.size[1] * 0.4;
+    headboard.position.set(0, item.size[1] * 0.52, -item.size[2] * 0.48);
+    pillow.position.set(-item.size[0] * 0.22, item.size[1] * 0.56, -item.size[2] * 0.28);
+    group.add(frame, mattress, headboard, pillow);
+  } else if (product.shape === "electronics") {
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.72, item.size[1] * 0.55, item.size[2] * 0.08), screenMaterial);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.84, item.size[1] * 0.65, item.size[2] * 0.05), darkMaterial);
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, item.size[1] * 0.28, 12), metalMaterial);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.36, item.size[1] * 0.06, item.size[2] * 0.34), metalMaterial);
+    bezel.position.y = item.size[1] * 0.64;
+    screen.position.y = item.size[1] * 0.64;
+    screen.position.z = item.size[2] * 0.04;
+    stand.position.y = item.size[1] * 0.28;
+    base.position.y = item.size[1] * 0.08;
+    group.add(bezel, screen, stand, base);
   } else if (product.shape === "table") {
     const top = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.18, item.size[2]), material);
     top.position.y = item.size[1] * 0.76;
