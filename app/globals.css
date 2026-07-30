@@ -653,11 +653,13 @@ button:disabled {
 
 .result-card h2,
 .result-card h3,
+.result-card h4,
 .result-card p {
   margin-top: 0;
 }
 
-.result-card h3 {
+.result-card h3,
+.result-card h4 {
   margin-bottom: 12px;
 }
 
@@ -718,6 +720,12 @@ li + li {
   margin: 0;
 }
 
+.model-workbench {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
 .placement-tools {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
@@ -727,7 +735,75 @@ li + li {
   border-radius: 8px;
   background: #fffaf5;
   padding: 12px;
-  margin-bottom: 12px;
+}
+
+.model-support-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.model-support-card {
+  min-width: 0;
+  border: 1px solid #e4d9cc;
+  border-radius: 8px;
+  background: #fffaf5;
+  padding: 14px;
+}
+
+.model-support-card h4 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.model-support-card ul {
+  margin-top: 0;
+}
+
+.result-toggle {
+  padding: 0;
+  overflow: hidden;
+}
+
+.result-toggle summary {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 16px 20px;
+  cursor: pointer;
+  color: #2d2925;
+  font-size: 1.05rem;
+  font-weight: 900;
+  list-style: none;
+}
+
+.result-toggle summary::-webkit-details-marker {
+  display: none;
+}
+
+.result-toggle summary::after {
+  content: "Show";
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #eadfce;
+  color: #3e342d;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.result-toggle[open] summary {
+  border-bottom: 1px solid #e4d9cc;
+}
+
+.result-toggle[open] summary::after {
+  content: "Hide";
+}
+
+.result-toggle > :not(summary) {
+  margin: 20px;
 }
 
 .tool-button-row,
@@ -1459,6 +1535,7 @@ li + li {
   .result-grid,
   .button-row,
   .placement-tools,
+  .model-support-grid,
   .product-grid,
   .suggestion-grid {
     grid-template-columns: 1fr;
@@ -1519,6 +1596,18 @@ li + li {
 
   .result-card {
     padding: 16px;
+  }
+
+  .result-toggle {
+    padding: 0;
+  }
+
+  .result-toggle summary {
+    padding: 14px 16px;
+  }
+
+  .result-toggle > :not(summary) {
+    margin: 16px;
   }
 
   .card-heading-row {

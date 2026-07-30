@@ -438,85 +438,86 @@ export default function Home() {
                     <h3>Room Model</h3>
                     <span id="roomDimensionsBadge" className="dimension-badge"></span>
                   </div>
-                  <div className="placement-tools" id="placementTools" aria-label="Furniture placement tools">
-                    <label htmlFor="selectedFurniture">Selected piece
-                      <select id="selectedFurniture"></select>
-                    </label>
-                    <div className="tool-button-row">
-                      <button type="button" className="secondary-button" id="rotateLeftButton">Rotate Left</button>
-                      <button type="button" className="secondary-button" id="rotateRightButton">Rotate Right</button>
-                    </div>
-                    <div className="tool-button-row">
-                      <button type="button" className="secondary-button" id="shrinkButton">Shrink</button>
-                      <button type="button" className="secondary-button" id="growButton">Grow</button>
-                    </div>
-                  </div>
                   <div className="room-preview" id="roomPreview"></div>
                   <p className="preview-caption" id="previewCaption"></p>
-                </article>
-
-                <article className="result-card">
-                  <h3>Color Palette</h3>
-                  <div className="palette" id="colorPalette"></div>
-                </article>
-
-                <article className="result-card">
-                  <h3>Budget Tracker</h3>
-                  <div className="budget-tracker" id="budgetTracker"></div>
-                </article>
-
-                <article className="result-card">
-                  <h3>Fit Warnings</h3>
-                  <ul id="fitWarnings"></ul>
-                </article>
-
-                <article className="result-card product-card-wrap">
-                  <h3>Pieces to Choose</h3>
-                  <div className="product-grid" id="productPicks"></div>
-                </article>
-
-                <article className="result-card product-card-wrap">
-                  <h3>Suggested Add-Ons</h3>
-                  <div className="suggestion-grid" id="suggestedAddOns"></div>
-                </article>
-
-                <article className="result-card">
-                  <h3>Furniture List</h3>
-                  <ul id="furnitureList"></ul>
-                </article>
-
-                <article className="result-card">
-                  <h3>Decor Ideas</h3>
-                  <ul id="decorIdeas"></ul>
-                </article>
-
-                <article className="result-card">
-                  <h3>Layout Suggestion</h3>
-                  <p id="layoutSuggestion"></p>
-                </article>
-
-                <article className="result-card">
-                  <h3>Mood Board</h3>
-                  <div className="mood-board" id="moodBoard"></div>
-                </article>
-
-                <article className="result-card">
-                  <h3>AI Style Notes</h3>
-                  <ul id="styleNotes"></ul>
-                </article>
-
-                <article className="result-card checklist-card">
-                  <h3>Shopping Checklist</h3>
-                  <ul id="shoppingChecklist"></ul>
-                </article>
-
-                <article className="result-card checklist-card">
-                  <h3>Export Plan</h3>
-                  <div className="export-actions">
-                    <button type="button" className="secondary-button" id="downloadImageButton">Download Image</button>
-                    <button type="button" className="secondary-button" id="downloadPdfButton">Download PDF</button>
+                  <div className="model-workbench" aria-label="Model tools and checks">
+                    <div className="placement-tools" id="placementTools" aria-label="Furniture placement tools">
+                      <label htmlFor="selectedFurniture">Selected piece
+                        <select id="selectedFurniture"></select>
+                      </label>
+                      <div className="tool-button-row">
+                        <button type="button" className="secondary-button" id="rotateLeftButton">Rotate Left</button>
+                        <button type="button" className="secondary-button" id="rotateRightButton">Rotate Right</button>
+                      </div>
+                      <div className="tool-button-row">
+                        <button type="button" className="secondary-button" id="shrinkButton">Shrink</button>
+                        <button type="button" className="secondary-button" id="growButton">Grow</button>
+                      </div>
+                    </div>
+                    <div className="model-support-grid">
+                      <section className="model-support-card" aria-labelledby="budgetTrackerTitle">
+                        <h4 id="budgetTrackerTitle">Budget Tracker</h4>
+                        <div className="budget-tracker" id="budgetTracker"></div>
+                      </section>
+                      <section className="model-support-card" aria-labelledby="fitWarningsTitle">
+                        <h4 id="fitWarningsTitle">Fit Warnings</h4>
+                        <ul id="fitWarnings"></ul>
+                      </section>
+                      <section className="model-support-card" aria-labelledby="exportPlanTitle">
+                        <h4 id="exportPlanTitle">Export Plan</h4>
+                        <div className="export-actions">
+                          <button type="button" className="secondary-button" id="downloadImageButton">Download Image</button>
+                          <button type="button" className="secondary-button" id="downloadPdfButton">Download PDF</button>
+                        </div>
+                      </section>
+                    </div>
                   </div>
                 </article>
+
+                <details className="result-card result-toggle" open>
+                  <summary>Color Palette</summary>
+                  <div className="palette" id="colorPalette"></div>
+                </details>
+
+                <details className="result-card result-toggle product-card-wrap" open>
+                  <summary>Pieces to Choose</summary>
+                  <div className="product-grid" id="productPicks"></div>
+                </details>
+
+                <details className="result-card result-toggle product-card-wrap">
+                  <summary>Suggested Add-Ons</summary>
+                  <div className="suggestion-grid" id="suggestedAddOns"></div>
+                </details>
+
+                <details className="result-card result-toggle">
+                  <summary>Furniture List</summary>
+                  <ul id="furnitureList"></ul>
+                </details>
+
+                <details className="result-card result-toggle">
+                  <summary>Decor Ideas</summary>
+                  <ul id="decorIdeas"></ul>
+                </details>
+
+                <details className="result-card result-toggle">
+                  <summary>Layout Suggestion</summary>
+                  <p id="layoutSuggestion"></p>
+                </details>
+
+                <details className="result-card result-toggle">
+                  <summary>Mood Board</summary>
+                  <div className="mood-board" id="moodBoard"></div>
+                </details>
+
+                <details className="result-card result-toggle">
+                  <summary>AI Style Notes</summary>
+                  <ul id="styleNotes"></ul>
+                </details>
+
+                <details className="result-card result-toggle checklist-card">
+                  <summary>Shopping Checklist</summary>
+                  <ul id="shoppingChecklist"></ul>
+                </details>
               </div>
             </div>
           </section>
