@@ -20,6 +20,9 @@ const rotateLeftButton = document.querySelector("#rotateLeftButton");
 const rotateRightButton = document.querySelector("#rotateRightButton");
 const shrinkButton = document.querySelector("#shrinkButton");
 const growButton = document.querySelector("#growButton");
+const snapPlacement = document.querySelector("#snapPlacement");
+const placementCommand = document.querySelector("#placementCommand");
+const applyPlacementButton = document.querySelector("#applyPlacementButton");
 const budgetTracker = document.querySelector("#budgetTracker");
 const fitWarnings = document.querySelector("#fitWarnings");
 const moodBoard = document.querySelector("#moodBoard");
@@ -1174,7 +1177,7 @@ function showFurnitureList(products) {
     const li = document.createElement("li");
 
     const mainText = document.createElement("span");
-    mainText.textContent = `${product.name} - ${product.size} - ${product.price}`;
+    mainText.textContent = `${product.name} - ${product.size} - ${product.price}${product.placementLabel ? ` - placed at ${product.placementLabel}` : ""}`;
     li.appendChild(mainText);
 
     if (product.sourceUrl) {
@@ -1541,6 +1544,8 @@ function renderPlacementTools(snapshot) {
   if (previousValue && snapshot.products.some((product) => product.id === previousValue)) {
     selectedFurniture.value = previousValue;
   }
+
+  updatePlacementCommandValue();
 }
 
 function getSelectedProduct() {
@@ -1560,6 +1565,50 @@ function updateSelectedProductPlacement(updater) {
 
   updater(product);
   currentSnapshot.budgetSummary = buildBudgetSummary(currentSnapshot.products, currentSnapshot.formValues.budget);
+  currentSnapshot.warnings = buildFitWarnings(currentSnapshot.products, currentSnapshot.dimensions, currentSnapshot.roomShape);
+  renderSnapshot(currentSnapshot);
+}
+
+function updatePlacementCommandValue() {
+  if (!placementCommand || !currentSnapshot) {
+    return;
+  }
+
+  const product = getSelectedProduct();
+  if (!product) {
+    placementCommand.value = "";
+    return;
+  }
+
+  const itemData = getDefaultItemData(currentSnapshot.dimensions.width, currentSnapshot.dimensions.length);
+  const index = Math.max(0, currentSnapshot.products.findIndex((item) => item.id === product.id));
+  const fallbackItem = itemData[Math.min(index, itemData.length - 1)] || itemData[0];
+  const placement = getProductPlacement(product, fallbackItem, currentSnapshot.dimensions.width, currentSnapshot.dimensions.length);
+  placementCommand.value = `x ${placement.x.toFixed(2)} z ${placement.z.toFixed(2)}`;
+}
+
+function applyTypedPlacement() {
+  if (!currentSnapshot || !placementCommand) {
+    return;
+  }
+
+  const product = getSelectedProduct();
+  const parsed = parsePlacementCommand(
+    placementCommand.value,
+    currentSnapshot.dimensions.width,
+    currentSnapshot.dimensions.length,
+    currentSnapshot.roomShape
+  );
+
+  if (!product || !parsed) {
+    placementCommand.setAttribute("aria-invalid", "true");
+    placementCommand.focus();
+    return;
+  }
+
+  placementCommand.removeAttribute("aria-invalid");
+  setProductPlacement(product, parsed.x, parsed.z, currentSnapshot.dimensions.width, currentSnapshot.dimensions.length);
+  product.placementLabel = parsed.label;
   currentSnapshot.warnings = buildFitWarnings(currentSnapshot.products, currentSnapshot.dimensions, currentSnapshot.roomShape);
   renderSnapshot(currentSnapshot);
 }
@@ -1906,8 +1955,122 @@ function getProductPlacement(product, fallbackItem, width, length) {
   };
 }
 
-function setProductPlacement(product, x, z, width, length) {
-  product.placement = getProductPlacement({ placement: { x, z } }, { pos: [x, 0, z] }, width, length);
+function isSnapPlacementEnabled() {
+  return snapPlacement ? snapPlacement.checked : true;
+}
+
+function snapValue(value, min, max) {
+  const edgeRange = 0.75;
+  const gridSize = 0.5;
+  let snapped = Math.round(value / gridSize) * gridSize;
+
+  if (Math.abs(snapped - min) <= edgeRange) {
+    snapped = min;
+  } else if (Math.abs(snapped - max) <= edgeRange) {
+    snapped = max;
+  }
+
+  return Math.max(min, Math.min(max, snapped));
+}
+
+function normalizePlacement(x, z, width, length, shouldSnap = isSnapPlacementEnabled()) {
+  const minX = -width / 2 + 0.6;
+  const maxX = width / 2 - 0.6;
+  const minZ = -length / 2 + 0.6;
+  const maxZ = length / 2 - 0.6;
+  const clampedX = Math.max(minX, Math.min(maxX, x));
+  const clampedZ = Math.max(minZ, Math.min(maxZ, z));
+
+  if (!shouldSnap) {
+    return { x: clampedX, z: clampedZ };
+  }
+
+  return {
+    x: snapValue(clampedX, minX, maxX),
+    z: snapValue(clampedZ, minZ, maxZ)
+  };
+}
+
+function setProductPlacement(product, x, z, width, length, shouldSnap = isSnapPlacementEnabled()) {
+  product.placement = normalizePlacement(x, z, width, length, shouldSnap);
+  return product.placement;
+}
+
+function parsePlacementCommand(command, width, length, roomShape = null) {
+  const text = String(command || "").trim().toLowerCase();
+  const minX = -width / 2 + 0.6;
+  const maxX = width / 2 - 0.6;
+  const minZ = -length / 2 + 0.6;
+  const maxZ = length / 2 - 0.6;
+
+  if (!text) {
+    return null;
+  }
+
+  const coordinateMatch = text.match(/x\s*(-?\d+(?:\.\d+)?)\s*(?:,|\s)+z\s*(-?\d+(?:\.\d+)?)/i);
+  const pairMatch = text.match(/^(-?\d+(?:\.\d+)?)\s*(?:,|\s+)\s*(-?\d+(?:\.\d+)?)$/);
+
+  if (coordinateMatch || pairMatch) {
+    const match = coordinateMatch || pairMatch;
+    return {
+      x: Number(match[1]),
+      z: Number(match[2]),
+      label: `x ${Number(match[1])}, z ${Number(match[2])}`
+    };
+  }
+
+  let x = 0;
+  let z = 0;
+  const hasLeft = /\bleft\b/.test(text);
+  const hasRight = /\bright\b/.test(text);
+  const hasBack = /\b(back|rear|top)\b/.test(text);
+  const hasFront = /\b(front|entry|bottom)\b/.test(text);
+  const hasCenter = /\b(center|middle)\b/.test(text);
+  const hasDoor = /\bdoor\b/.test(text);
+
+  if (hasDoor && roomShape?.doorLocation) {
+    if (roomShape.doorLocation === "left") {
+      x = minX;
+    } else if (roomShape.doorLocation === "right") {
+      x = maxX;
+    } else if (roomShape.doorLocation === "back") {
+      z = minZ;
+    } else {
+      z = maxZ;
+    }
+  }
+
+  if (hasLeft) {
+    x = minX;
+  } else if (hasRight) {
+    x = maxX;
+  } else if (hasCenter) {
+    x = 0;
+  }
+
+  if (hasBack) {
+    z = minZ;
+  } else if (hasFront) {
+    z = maxZ;
+  } else if (hasCenter) {
+    z = 0;
+  }
+
+  if (/\bcorner\b/.test(text)) {
+    if (!hasLeft && !hasRight) {
+      x = hasDoor && roomShape?.doorLocation === "right" ? maxX : minX;
+    }
+
+    if (!hasBack && !hasFront) {
+      z = hasDoor && roomShape?.doorLocation === "back" ? minZ : maxZ;
+    }
+  }
+
+  if (!hasLeft && !hasRight && !hasBack && !hasFront && !hasCenter && !hasDoor && !/\bcorner\b/.test(text)) {
+    return null;
+  }
+
+  return { x, z, label: text };
 }
 
 function safelyCapturePointer(element, pointerId) {
@@ -2081,9 +2244,9 @@ function attachFloorItemDrag(item, product, plan, dimensions) {
     const topRatio = Math.max(0.04, Math.min(0.96, (event.clientY - rect.top) / rect.height));
     const x = leftRatio * dimensions.width - dimensions.width / 2;
     const z = topRatio * dimensions.length - dimensions.length / 2;
-    setProductPlacement(product, x, z, dimensions.width, dimensions.length);
-    item.style.left = `${leftRatio * 100}%`;
-    item.style.top = `${topRatio * 100}%`;
+    const placement = setProductPlacement(product, x, z, dimensions.width, dimensions.length);
+    item.style.left = `${((placement.x + dimensions.width / 2) / dimensions.width) * 100}%`;
+    item.style.top = `${((placement.z + dimensions.length / 2) / dimensions.length) * 100}%`;
     item.classList.add("is-dragging");
   };
 
@@ -2585,11 +2748,9 @@ function setup3DInteraction(canvas, renderer, scene, camera, products, draggable
       return;
     }
 
-    const x = Math.max(-width / 2 + 0.6, Math.min(width / 2 - 0.6, floorPoint.x));
-    const z = Math.max(-length / 2 + 0.6, Math.min(length / 2 - 0.6, floorPoint.z));
-    active.object.position.x = x;
-    active.object.position.z = z;
-    setProductPlacement(active.product, x, z, width, length);
+    const placement = setProductPlacement(active.product, floorPoint.x, floorPoint.z, width, length);
+    active.object.position.x = placement.x;
+    active.object.position.z = placement.z;
     render();
   };
 
@@ -2884,6 +3045,10 @@ function resetDesign() {
   roomPreview.innerHTML = "";
   roomDimensionsBadge.textContent = "";
   previewCaption.textContent = "";
+  if (placementCommand) {
+    placementCommand.value = "";
+    placementCommand.removeAttribute("aria-invalid");
+  }
   resetExtraSpaceRows();
   resetOutletRows();
   resetCeilingLightRows();
@@ -2917,6 +3082,17 @@ growButton?.addEventListener("click", () => {
     product.scale = Math.min(1.6, (product.scale || 1) + 0.1);
   });
 });
+selectedFurniture?.addEventListener("change", updatePlacementCommandValue);
+placementCommand?.addEventListener("input", () => {
+  placementCommand.removeAttribute("aria-invalid");
+});
+placementCommand?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    applyTypedPlacement();
+  }
+});
+applyPlacementButton?.addEventListener("click", applyTypedPlacement);
 downloadImageButton?.addEventListener("click", exportRoomImage);
 downloadPdfButton?.addEventListener("click", exportRoomPdf);
 addSpaceButton.addEventListener("click", () => {

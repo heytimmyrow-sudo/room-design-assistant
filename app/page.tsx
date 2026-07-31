@@ -453,6 +453,18 @@ export default function Home() {
                         <button type="button" className="secondary-button" id="shrinkButton">Shrink</button>
                         <button type="button" className="secondary-button" id="growButton">Grow</button>
                       </div>
+                      <label className="snap-toggle" htmlFor="snapPlacement">
+                        <input type="checkbox" id="snapPlacement" defaultChecked />
+                        Snap placement
+                      </label>
+                      <label htmlFor="placementCommand">Place selected piece
+                        <input
+                          type="text"
+                          id="placementCommand"
+                          placeholder="back wall, center, left corner, x 2 z -3"
+                        />
+                      </label>
+                      <button type="button" className="secondary-button full-tool-button" id="applyPlacementButton">Apply Placement</button>
                     </div>
                     <div className="model-support-grid">
                       <section className="model-support-card" aria-labelledby="budgetTrackerTitle">

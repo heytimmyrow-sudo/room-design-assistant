@@ -728,13 +728,46 @@ li + li {
 
 .placement-tools {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   align-items: end;
   border: 1px solid #e4d9cc;
   border-radius: 8px;
   background: #fffaf5;
   padding: 12px;
+}
+
+.placement-tools label {
+  min-width: 0;
+}
+
+.placement-tools input[type="text"] {
+  min-height: 48px;
+}
+
+.placement-tools input[aria-invalid="true"] {
+  border-color: #b42318;
+  box-shadow: 0 0 0 4px rgba(180, 35, 24, 0.1);
+}
+
+.snap-toggle {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+}
+
+.snap-toggle input {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  accent-color: var(--teal);
+}
+
+.full-tool-button {
+  grid-column: 2;
+  width: 100%;
 }
 
 .model-support-grid {
@@ -1539,6 +1572,10 @@ li + li {
   .product-grid,
   .suggestion-grid {
     grid-template-columns: 1fr;
+  }
+
+  .full-tool-button {
+    grid-column: 1;
   }
 
   .mood-board {
