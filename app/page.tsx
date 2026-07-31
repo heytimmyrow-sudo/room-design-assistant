@@ -388,6 +388,15 @@ export default function Home() {
               Add store link?
             </label>
 
+            <div className="panel-controls" aria-label="Form panel controls">
+              <button type="button" className="secondary-button" id="showFormPanelsButton">
+                Show Sections
+              </button>
+              <button type="button" className="secondary-button" id="hideFormPanelsButton">
+                Hide Sections
+              </button>
+            </div>
+
             <div className="button-row">
               <button type="submit" className="primary-button">
                 Generate Design
@@ -399,6 +408,16 @@ export default function Home() {
                 Reset
               </button>
             </div>
+
+            <label htmlFor="demoSelector">
+              Demo room
+              <select id="demoSelector" name="demoSelector">
+                <option value="rental-living-room">Cozy rental living room</option>
+                <option value="gaming-bedroom">Gaming bedroom</option>
+                <option value="minimalist-office">Minimalist office</option>
+                <option value="small-dining-room">Small dining room</option>
+              </select>
+            </label>
 
             <button type="button" className="save-button" id="saveButton" disabled>
               Save Room Plan
@@ -487,6 +506,13 @@ export default function Home() {
                           <button type="button" className="secondary-button" id="downloadPdfButton">Download PDF</button>
                           <button type="button" className="secondary-button" id="downloadChecklistButton">Download List</button>
                         </div>
+                      </section>
+                      <section className="model-support-card qr-card" aria-labelledby="mobileShareTitle">
+                        <h4 id="mobileShareTitle">Open On Phone</h4>
+                        <canvas id="mobileQrCode" className="qr-canvas" aria-label="QR code for the live Room Design Assistant website"></canvas>
+                        <a id="mobileShareLink" className="store-link" href="https://room-design-assistant.timmyrow.chatgpt.site" target="_blank" rel="noopener noreferrer">
+                          Live site link
+                        </a>
                       </section>
                     </div>
                   </div>
@@ -579,6 +605,10 @@ export default function Home() {
       </main>
       <Script
         src="https://unpkg.com/three@0.160.0/build/three.min.js"
+        strategy="beforeInteractive"
+      />
+      <Script
+        src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"
         strategy="beforeInteractive"
       />
       <Script src="/room-design.js" strategy="afterInteractive" />

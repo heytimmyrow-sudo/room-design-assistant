@@ -273,6 +273,17 @@ textarea:focus-visible {
   gap: 12px;
 }
 
+.panel-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.panel-controls button {
+  min-height: 42px;
+  font-size: 0.9rem;
+}
+
 button {
   min-height: 48px;
   border: 0;
@@ -781,7 +792,7 @@ li + li {
 
 .model-support-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -796,6 +807,21 @@ li + li {
 .model-support-card h4 {
   margin: 0 0 10px;
   font-size: 0.95rem;
+}
+
+.qr-card {
+  align-content: start;
+  justify-items: start;
+}
+
+.qr-canvas {
+  width: 142px;
+  height: 142px;
+  max-width: 100%;
+  border: 1px solid #e4d9cc;
+  border-radius: 8px;
+  background: #fffaf2;
+  padding: 6px;
 }
 
 .model-support-card ul {
@@ -1396,6 +1422,10 @@ li + li {
   box-shadow: 0 18px 28px rgba(34, 32, 31, 0.16);
 }
 
+.product-shape::before {
+  box-shadow: 0 8px 0 rgba(255, 255, 255, 0.22) inset;
+}
+
 .product-shape::before,
 .product-shape::after {
   content: "";
@@ -1421,10 +1451,26 @@ li + li {
   border-radius: 50%;
 }
 
+.product-shape.table::before {
+  left: 28%;
+}
+
+.product-shape.table::after {
+  right: 28%;
+}
+
 .product-shape.chair {
   width: 42%;
   height: 68px;
   border-radius: 12px 12px 8px 8px;
+}
+
+.product-shape.chair::before {
+  left: 12%;
+}
+
+.product-shape.chair::after {
+  right: 12%;
 }
 
 .product-shape.desk {
@@ -1433,10 +1479,33 @@ li + li {
   border-radius: 6px;
 }
 
+.product-shape.desk::before,
+.product-shape.desk::after {
+  height: 46px;
+}
+
 .product-shape.bed {
   width: 82%;
   height: 72px;
   border-radius: 14px 14px 8px 8px;
+}
+
+.product-shape.bed::before {
+  width: 28%;
+  height: 16px;
+  left: 12%;
+  bottom: 46px;
+  border-radius: 8px;
+  background: #fffaf2;
+}
+
+.product-shape.bed::after {
+  width: 28%;
+  height: 16px;
+  right: 12%;
+  bottom: 46px;
+  border-radius: 8px;
+  background: #fffaf2;
 }
 
 .product-shape.electronics {
@@ -1445,10 +1514,25 @@ li + li {
   border-radius: 8px;
 }
 
+.product-shape.electronics::before {
+  left: calc(50% - 5px);
+}
+
+.product-shape.electronics::after {
+  right: calc(50% - 44px);
+  bottom: -25px;
+  width: 88px;
+  height: 10px;
+}
+
 .product-shape.storage {
   width: 54%;
   height: 92px;
   border-radius: 8px;
+  background:
+    linear-gradient(90deg, transparent 49%, rgba(34, 32, 31, 0.2) 50%, transparent 51%),
+    linear-gradient(0deg, transparent 32%, rgba(34, 32, 31, 0.16) 33%, transparent 34%, transparent 65%, rgba(34, 32, 31, 0.16) 66%, transparent 67%),
+    var(--product-color, var(--accent));
 }
 
 .product-shape.light {
@@ -1644,6 +1728,7 @@ li + li {
 
   .result-grid,
   .button-row,
+  .panel-controls,
   .placement-tools,
   .model-support-grid,
   .product-grid,
@@ -1781,7 +1866,8 @@ li + li {
 
 @media (min-width: 621px) and (max-width: 980px) {
   .product-grid,
-  .suggestion-grid {
+  .suggestion-grid,
+  .model-support-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

@@ -1,6 +1,9 @@
 const designForm = document.querySelector("#designForm");
 const resetButton = document.querySelector("#resetButton");
 const demoButton = document.querySelector("#demoButton");
+const demoSelector = document.querySelector("#demoSelector");
+const showFormPanelsButton = document.querySelector("#showFormPanelsButton");
+const hideFormPanelsButton = document.querySelector("#hideFormPanelsButton");
 const emptyState = document.querySelector("#emptyState");
 const results = document.querySelector("#results");
 
@@ -31,6 +34,8 @@ const styleNotes = document.querySelector("#styleNotes");
 const downloadImageButton = document.querySelector("#downloadImageButton");
 const downloadPdfButton = document.querySelector("#downloadPdfButton");
 const downloadChecklistButton = document.querySelector("#downloadChecklistButton");
+const mobileQrCode = document.querySelector("#mobileQrCode");
+const mobileShareLink = document.querySelector("#mobileShareLink");
 const saveButton = document.querySelector("#saveButton");
 const savedRoomList = document.querySelector("#savedRoomList");
 const saveStatus = document.querySelector("#saveStatus");
@@ -50,42 +55,148 @@ let activeSaveId = "";
 let currentSnapshot = null;
 let gltfLoaderPromise = null;
 const MAX_MODEL_PRODUCTS = 8;
+const LIVE_SITE_URL = "https://room-design-assistant.timmyrow.chatgpt.site";
 
-const demoRoomValues = {
-  roomTemplate: "rental-living-room",
-  roomType: "rental living room",
-  roomName: "Demo rental living room",
-  designStyle: "cozy",
-  favoriteColors: "sage green, warm cream, walnut",
-  budget: "1800",
-  dimensions: "12 x 15 ft",
-  doorLocation: "front",
-  doorNote: "near the left corner",
-  windowPlan: "back center, right wall",
-  wallPlan: "renter-friendly layout with no-drill storage and open walkway",
-  extraSpaces: [
-    { name: "Reading nook", dimensions: "4 x 6 ft", side: "right" }
-  ],
-  outlets: [
-    { wall: "front", position: "center" },
-    { wall: "right", position: "left" }
-  ],
-  ceilingLights: [
-    { type: "flush", position: "center" },
-    { type: "pendant", position: "right" }
-  ],
-  ownedFurniture: [
-    { name: "Existing TV stand", dimensions: "58 x 16 x 24 in", type: "storage" },
-    { name: "Round side table", dimensions: "20 x 20 x 22 in", type: "table" }
-  ],
-  modelView: "3d",
-  mustHaves: "sofa, storage ottoman, floor lamp",
-  furnitureLinks: "",
-  modelLinks: "",
-  productSource: "search",
-  productApiKey: "",
-  addStoreLinks: true
+const demoRoomPresets = {
+  "rental-living-room": {
+    roomTemplate: "rental-living-room",
+    roomType: "rental living room",
+    roomName: "Demo rental living room",
+    designStyle: "cozy",
+    favoriteColors: "sage green, warm cream, walnut",
+    budget: "1800",
+    dimensions: "12 x 15 ft",
+    doorLocation: "front",
+    doorNote: "near the left corner",
+    windowPlan: "back center, right wall",
+    wallPlan: "renter-friendly layout with no-drill storage and open walkway",
+    extraSpaces: [
+      { name: "Reading nook", dimensions: "4 x 6 ft", side: "right" }
+    ],
+    outlets: [
+      { wall: "front", position: "center" },
+      { wall: "right", position: "left" }
+    ],
+    ceilingLights: [
+      { type: "flush", position: "center" },
+      { type: "pendant", position: "right" }
+    ],
+    ownedFurniture: [
+      { name: "Existing TV stand", dimensions: "58 x 16 x 24 in", type: "storage" },
+      { name: "Round side table", dimensions: "20 x 20 x 22 in", type: "table" }
+    ],
+    modelView: "3d",
+    mustHaves: "sofa, storage ottoman, floor lamp",
+    furnitureLinks: "",
+    modelLinks: "",
+    productSource: "search",
+    productApiKey: "",
+    addStoreLinks: true
+  },
+  "gaming-bedroom": {
+    roomTemplate: "gaming-setup",
+    roomType: "gaming bedroom",
+    roomName: "Demo gaming bedroom",
+    designStyle: "gaming",
+    favoriteColors: "graphite, cyan, violet",
+    budget: "2200",
+    dimensions: "11 x 13 ft",
+    doorLocation: "left",
+    doorNote: "front half of the left wall",
+    windowPlan: "back right",
+    wallPlan: "desk wall avoids window glare, bed shares the left zone",
+    extraSpaces: [
+      { name: "Closet bump-out", dimensions: "3 x 5 ft", side: "front" }
+    ],
+    outlets: [
+      { wall: "back", position: "right" },
+      { wall: "right", position: "center" },
+      { wall: "front", position: "left" }
+    ],
+    ceilingLights: [
+      { type: "track", position: "center" },
+      { type: "recessed", position: "back" }
+    ],
+    ownedFurniture: [
+      { name: "Full bed", dimensions: "75 x 54 x 28 in", type: "bed" },
+      { name: "Existing gaming monitor", dimensions: "24 x 8 x 18 in", type: "electronics" }
+    ],
+    modelView: "3d",
+    mustHaves: "gaming desk, ergonomic chair, LED corner lamp",
+    furnitureLinks: "",
+    modelLinks: "",
+    productSource: "search",
+    productApiKey: "",
+    addStoreLinks: true
+  },
+  "minimalist-office": {
+    roomTemplate: "home-office",
+    roomType: "home office",
+    roomName: "Demo minimalist office",
+    designStyle: "minimalist",
+    favoriteColors: "soft white, oak, stone gray",
+    budget: "1200",
+    dimensions: "10 x 12 ft",
+    doorLocation: "front",
+    doorNote: "front right corner",
+    windowPlan: "left center",
+    wallPlan: "quiet camera background on the back wall",
+    extraSpaces: [
+      { name: "Printer alcove", dimensions: "3 x 4 ft", side: "right" }
+    ],
+    outlets: [
+      { wall: "back", position: "center" },
+      { wall: "left", position: "right" }
+    ],
+    ceilingLights: [
+      { type: "flush", position: "center" }
+    ],
+    ownedFurniture: [
+      { name: "White bookcase", dimensions: "31 x 12 x 72 in", type: "storage" }
+    ],
+    modelView: "3d",
+    mustHaves: "standing desk, task chair, paper shade floor lamp",
+    furnitureLinks: "",
+    modelLinks: "",
+    productSource: "search",
+    productApiKey: "",
+    addStoreLinks: true
+  },
+  "small-dining-room": {
+    roomTemplate: "small-dining-room",
+    roomType: "small dining room",
+    roomName: "Demo small dining room",
+    designStyle: "modern",
+    favoriteColors: "cloud white, walnut, brass",
+    budget: "1500",
+    dimensions: "9 x 10 ft",
+    doorLocation: "front",
+    doorNote: "center opening from kitchen",
+    windowPlan: "back center",
+    wallPlan: "narrow cabinet wall along the right side",
+    extraSpaces: [
+      { name: "Serving nook", dimensions: "3 x 5 ft", side: "right" }
+    ],
+    outlets: [
+      { wall: "right", position: "center" }
+    ],
+    ceilingLights: [
+      { type: "pendant", position: "center" }
+    ],
+    ownedFurniture: [
+      { name: "Round dining table", dimensions: "42 x 42 x 30 in", type: "table" }
+    ],
+    modelView: "3d",
+    mustHaves: "four chairs, narrow cabinet, pendant light",
+    furnitureLinks: "",
+    modelLinks: "",
+    productSource: "search",
+    productApiKey: "",
+    addStoreLinks: true
+  }
 };
+
+const demoRoomValues = demoRoomPresets["rental-living-room"];
 
 const roomTemplates = {
   "small-bedroom": {
@@ -1423,6 +1534,7 @@ function renderSnapshot(snapshot) {
   addListItems(decorIdeas, snapshot.decor);
   addListItems(styleNotes, buildStyleNotes(snapshot));
   addListItems(shoppingChecklist, snapshot.checklist);
+  renderMobileQrCode();
 
   emptyState.classList.add("hidden");
   results.classList.remove("hidden");
@@ -1645,6 +1757,23 @@ function renderPlacementTools(snapshot) {
   updatePlacementCommandValue();
 }
 
+function setDetailsOpen(selector, open) {
+  document.querySelectorAll(selector).forEach((panel) => {
+    panel.open = open;
+  });
+}
+
+function setFormPanelsOpen(open) {
+  setDetailsOpen(".design-form details.form-panel", open);
+}
+
+function setCompactMobilePanels() {
+  if (window.matchMedia("(max-width: 620px)").matches) {
+    setFormPanelsOpen(false);
+    document.querySelector(".saved-rooms")?.setAttribute("open", "");
+  }
+}
+
 function getSelectedProduct() {
   if (!currentSnapshot || !selectedFurniture) {
     return null;
@@ -1727,6 +1856,45 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function renderMobileQrCode() {
+  if (!mobileShareLink) {
+    return;
+  }
+
+  mobileShareLink.href = LIVE_SITE_URL;
+  mobileShareLink.textContent = "Open live site";
+
+  if (!mobileQrCode) {
+    return;
+  }
+
+  if (window.QRCode?.toCanvas) {
+    window.QRCode.toCanvas(mobileQrCode, LIVE_SITE_URL, {
+      width: 142,
+      margin: 1,
+      color: {
+        dark: "#22201f",
+        light: "#fffaf2"
+      }
+    });
+    return;
+  }
+
+  const context = mobileQrCode.getContext("2d");
+  mobileQrCode.width = 142;
+  mobileQrCode.height = 142;
+  context.fillStyle = "#fffaf2";
+  context.fillRect(0, 0, 142, 142);
+  context.fillStyle = "#22201f";
+  for (let y = 0; y < 11; y += 1) {
+    for (let x = 0; x < 11; x += 1) {
+      if ((x * 7 + y * 11 + LIVE_SITE_URL.length) % 4 === 0) {
+        context.fillRect(8 + x * 12, 8 + y * 12, 8, 8);
+      }
+    }
+  }
 }
 
 function exportRoomImage() {
@@ -2460,6 +2628,20 @@ function attachFloorItemResize(handle, item, product) {
   });
 }
 
+function addSmallCylinder(group, THREE, radius, height, material, x, y, z) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 16), material);
+  mesh.position.set(x, y, z);
+  group.add(mesh);
+  return mesh;
+}
+
+function addBox(group, THREE, size, material, position = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  mesh.position.set(...position);
+  group.add(mesh);
+  return mesh;
+}
+
 function addFurnitureObject(scene, product, item, THREE) {
   const group = new THREE.Group();
   group.position.set(item.pos[0], 0, item.pos[2]);
@@ -2472,100 +2654,90 @@ function addFurnitureObject(scene, product, item, THREE) {
   const darkMaterial = new THREE.MeshStandardMaterial({ color: 0x49392e, roughness: 0.7 });
   const metalMaterial = new THREE.MeshStandardMaterial({ color: 0x2f3437, roughness: 0.5, metalness: 0.18 });
   const screenMaterial = new THREE.MeshStandardMaterial({ color: 0x1d2933, emissive: 0x12364a, emissiveIntensity: 0.18, roughness: 0.35 });
+  const fabricMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(product.color).offsetHSL(0, -0.05, 0.12), roughness: 0.88 });
+  const paleFabric = new THREE.MeshStandardMaterial({ color: 0xf7efe5, roughness: 0.88 });
 
   if (product.shape === "seat") {
-    const base = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.48, item.size[2]), material);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.9, item.size[2] * 0.18), material);
-    const leftArm = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.08, item.size[1] * 0.72, item.size[2]), material);
-    const rightArm = leftArm.clone();
-    const cushionMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(product.color).offsetHSL(0, 0, 0.12), roughness: 0.74 });
-    const cushion = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.82, item.size[1] * 0.16, item.size[2] * 0.72), cushionMaterial);
-
-    base.position.y = item.size[1] * 0.18;
-    back.position.set(0, item.size[1] * 0.48, -item.size[2] * 0.42);
-    leftArm.position.set(-item.size[0] * 0.46, item.size[1] * 0.34, 0);
-    rightArm.position.set(item.size[0] * 0.46, item.size[1] * 0.34, 0);
-    cushion.position.y = item.size[1] * 0.48;
-    group.add(base, back, leftArm, rightArm, cushion);
+    addBox(group, THREE, [item.size[0], item.size[1] * 0.34, item.size[2]], material, [0, item.size[1] * 0.24, 0]);
+    addBox(group, THREE, [item.size[0], item.size[1] * 0.78, item.size[2] * 0.16], material, [0, item.size[1] * 0.58, -item.size[2] * 0.44]);
+    addBox(group, THREE, [item.size[0] * 0.08, item.size[1] * 0.58, item.size[2]], material, [-item.size[0] * 0.46, item.size[1] * 0.42, 0]);
+    addBox(group, THREE, [item.size[0] * 0.08, item.size[1] * 0.58, item.size[2]], material, [item.size[0] * 0.46, item.size[1] * 0.42, 0]);
+    addBox(group, THREE, [item.size[0] * 0.36, item.size[1] * 0.13, item.size[2] * 0.72], fabricMaterial, [-item.size[0] * 0.2, item.size[1] * 0.52, item.size[2] * 0.04]);
+    addBox(group, THREE, [item.size[0] * 0.36, item.size[1] * 0.13, item.size[2] * 0.72], fabricMaterial, [item.size[0] * 0.2, item.size[1] * 0.52, item.size[2] * 0.04]);
+    addBox(group, THREE, [item.size[0] * 0.2, item.size[1] * 0.18, item.size[2] * 0.16], paleFabric, [-item.size[0] * 0.24, item.size[1] * 0.78, -item.size[2] * 0.36]);
+    addBox(group, THREE, [item.size[0] * 0.2, item.size[1] * 0.18, item.size[2] * 0.16], paleFabric, [item.size[0] * 0.24, item.size[1] * 0.78, -item.size[2] * 0.36]);
+    [-0.34, 0.34].forEach((x) => [-0.32, 0.32].forEach((z) => addSmallCylinder(group, THREE, 0.04, item.size[1] * 0.2, darkMaterial, item.size[0] * x, item.size[1] * 0.08, item.size[2] * z)));
   } else if (product.shape === "chair") {
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.55, item.size[1] * 0.18, item.size[2] * 0.55), material);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.55, item.size[1] * 0.72, item.size[2] * 0.08), material);
-    seat.position.y = item.size[1] * 0.42;
-    back.position.set(0, item.size[1] * 0.72, -item.size[2] * 0.28);
-    group.add(seat, back);
+    addBox(group, THREE, [item.size[0] * 0.6, item.size[1] * 0.18, item.size[2] * 0.58], fabricMaterial, [0, item.size[1] * 0.42, 0]);
+    addBox(group, THREE, [item.size[0] * 0.62, item.size[1] * 0.72, item.size[2] * 0.09], material, [0, item.size[1] * 0.74, -item.size[2] * 0.29]);
+    addBox(group, THREE, [item.size[0] * 0.08, item.size[1] * 0.38, item.size[2] * 0.52], material, [-item.size[0] * 0.34, item.size[1] * 0.55, 0]);
+    addBox(group, THREE, [item.size[0] * 0.08, item.size[1] * 0.38, item.size[2] * 0.52], material, [item.size[0] * 0.34, item.size[1] * 0.55, 0]);
 
     [-0.2, 0.2].forEach((x) => {
       [-0.2, 0.2].forEach((z) => {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, item.size[1] * 0.42, 12), darkMaterial);
-        leg.position.set(item.size[0] * x, item.size[1] * 0.2, item.size[2] * z);
-        group.add(leg);
+        addSmallCylinder(group, THREE, 0.035, item.size[1] * 0.42, darkMaterial, item.size[0] * x, item.size[1] * 0.2, item.size[2] * z);
       });
     });
   } else if (product.shape === "desk") {
-    const top = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.14, item.size[2]), material);
-    const modesty = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.75, item.size[1] * 0.28, item.size[2] * 0.05), darkMaterial);
-    top.position.y = item.size[1] * 0.78;
-    modesty.position.set(0, item.size[1] * 0.52, -item.size[2] * 0.35);
-    group.add(top, modesty);
+    addBox(group, THREE, [item.size[0], item.size[1] * 0.14, item.size[2]], material, [0, item.size[1] * 0.78, 0]);
+    addBox(group, THREE, [item.size[0] * 0.75, item.size[1] * 0.28, item.size[2] * 0.05], darkMaterial, [0, item.size[1] * 0.52, -item.size[2] * 0.35]);
+    addBox(group, THREE, [item.size[0] * 0.28, item.size[1] * 0.26, item.size[2] * 0.05], screenMaterial, [-item.size[0] * 0.18, item.size[1] * 1.02, -item.size[2] * 0.22]);
+    addBox(group, THREE, [item.size[0] * 0.16, item.size[1] * 0.03, item.size[2] * 0.16], metalMaterial, [item.size[0] * 0.2, item.size[1] * 0.88, item.size[2] * 0.12]);
 
     [-0.42, 0.42].forEach((x) => {
       [-0.35, 0.35].forEach((z) => {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.055, item.size[1] * 0.72, item.size[2] * 0.055), metalMaterial);
-        leg.position.set(item.size[0] * x, item.size[1] * 0.36, item.size[2] * z);
-        group.add(leg);
+        addBox(group, THREE, [item.size[0] * 0.055, item.size[1] * 0.72, item.size[2] * 0.055], metalMaterial, [item.size[0] * x, item.size[1] * 0.36, item.size[2] * z]);
       });
     });
   } else if (product.shape === "bed") {
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.25, item.size[2]), darkMaterial);
-    const mattress = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.9, item.size[1] * 0.18, item.size[2] * 0.86), material);
-    const headboard = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.8, item.size[2] * 0.08), darkMaterial);
-    const pillow = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.36, item.size[1] * 0.12, item.size[2] * 0.18), new THREE.MeshStandardMaterial({ color: 0xf8f7f2, roughness: 0.8 }));
-    frame.position.y = item.size[1] * 0.18;
-    mattress.position.y = item.size[1] * 0.4;
-    headboard.position.set(0, item.size[1] * 0.52, -item.size[2] * 0.48);
-    pillow.position.set(-item.size[0] * 0.22, item.size[1] * 0.56, -item.size[2] * 0.28);
-    group.add(frame, mattress, headboard, pillow);
+    addBox(group, THREE, [item.size[0], item.size[1] * 0.25, item.size[2]], darkMaterial, [0, item.size[1] * 0.18, 0]);
+    addBox(group, THREE, [item.size[0] * 0.9, item.size[1] * 0.18, item.size[2] * 0.86], material, [0, item.size[1] * 0.4, 0]);
+    addBox(group, THREE, [item.size[0], item.size[1] * 0.8, item.size[2] * 0.08], darkMaterial, [0, item.size[1] * 0.52, -item.size[2] * 0.48]);
+    addBox(group, THREE, [item.size[0] * 0.32, item.size[1] * 0.12, item.size[2] * 0.18], paleFabric, [-item.size[0] * 0.22, item.size[1] * 0.56, -item.size[2] * 0.28]);
+    addBox(group, THREE, [item.size[0] * 0.32, item.size[1] * 0.12, item.size[2] * 0.18], paleFabric, [item.size[0] * 0.22, item.size[1] * 0.56, -item.size[2] * 0.28]);
+    addBox(group, THREE, [item.size[0] * 0.82, item.size[1] * 0.08, item.size[2] * 0.42], fabricMaterial, [0, item.size[1] * 0.58, item.size[2] * 0.12]);
   } else if (product.shape === "electronics") {
-    const screen = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.72, item.size[1] * 0.55, item.size[2] * 0.08), screenMaterial);
-    const bezel = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.84, item.size[1] * 0.65, item.size[2] * 0.05), darkMaterial);
-    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, item.size[1] * 0.28, 12), metalMaterial);
-    const base = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.36, item.size[1] * 0.06, item.size[2] * 0.34), metalMaterial);
-    bezel.position.y = item.size[1] * 0.64;
-    screen.position.y = item.size[1] * 0.64;
-    screen.position.z = item.size[2] * 0.04;
-    stand.position.y = item.size[1] * 0.28;
-    base.position.y = item.size[1] * 0.08;
-    group.add(bezel, screen, stand, base);
+    addBox(group, THREE, [item.size[0] * 0.84, item.size[1] * 0.65, item.size[2] * 0.05], darkMaterial, [0, item.size[1] * 0.64, 0]);
+    addBox(group, THREE, [item.size[0] * 0.72, item.size[1] * 0.55, item.size[2] * 0.08], screenMaterial, [0, item.size[1] * 0.64, item.size[2] * 0.04]);
+    addSmallCylinder(group, THREE, 0.045, item.size[1] * 0.28, metalMaterial, 0, item.size[1] * 0.28, 0);
+    addBox(group, THREE, [item.size[0] * 0.36, item.size[1] * 0.06, item.size[2] * 0.34], metalMaterial, [0, item.size[1] * 0.08, 0]);
+    addBox(group, THREE, [item.size[0] * 0.62, item.size[1] * 0.06, item.size[2] * 0.18], metalMaterial, [0, item.size[1] * 0.03, item.size[2] * 0.34]);
   } else if (product.shape === "table") {
-    const top = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.18, item.size[2]), material);
+    const isRound = /round|nesting|side|coffee/i.test(product.name);
+    const top = isRound
+      ? new THREE.Mesh(new THREE.CylinderGeometry(Math.min(item.size[0], item.size[2]) * 0.5, Math.min(item.size[0], item.size[2]) * 0.5, item.size[1] * 0.16, 32), material)
+      : new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1] * 0.18, item.size[2]), material);
     top.position.y = item.size[1] * 0.76;
     group.add(top);
 
     [-0.38, 0.38].forEach((x) => {
       [-0.34, 0.34].forEach((z) => {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(item.size[0] * 0.08, item.size[1] * 0.7, item.size[2] * 0.08), darkMaterial);
-        leg.position.set(item.size[0] * x, item.size[1] * 0.35, item.size[2] * z);
-        group.add(leg);
+        addSmallCylinder(group, THREE, 0.04, item.size[1] * 0.7, darkMaterial, item.size[0] * x, item.size[1] * 0.35, item.size[2] * z);
       });
     });
   } else if (product.shape === "rug") {
-    const rug = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1], item.size[2]), material);
+    const rug = new THREE.Mesh(new THREE.BoxGeometry(item.size[0], item.size[1], item.size[2]), fabricMaterial);
     rug.position.y = item.size[1] * 0.5;
     group.add(rug);
+    [-0.25, 0, 0.25].forEach((x) => {
+      addBox(group, THREE, [item.size[0] * 0.05, item.size[1] * 1.15, item.size[2] * 0.98], material, [item.size[0] * x, item.size[1] * 0.62, 0]);
+    });
   } else if (product.shape === "light") {
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, item.size[1], 16), darkMaterial);
-    const shade = new THREE.Mesh(new THREE.CylinderGeometry(item.size[0] * 0.24, item.size[0] * 0.32, item.size[1] * 0.22, 24), material);
-    pole.position.y = item.size[1] * 0.5;
+    addSmallCylinder(group, THREE, 0.16, item.size[1] * 0.04, metalMaterial, 0, item.size[1] * 0.02, 0);
+    addSmallCylinder(group, THREE, 0.04, item.size[1], darkMaterial, 0, item.size[1] * 0.5, 0);
+    const shade = new THREE.Mesh(new THREE.CylinderGeometry(item.size[0] * 0.24, item.size[0] * 0.34, item.size[1] * 0.22, 28), material);
     shade.position.y = item.size[1] * 0.94;
-    group.add(pole, shade);
+    group.add(shade);
+    const bulb = new THREE.PointLight(0xffe7ad, 0.28, item.size[1] * 0.9);
+    bulb.position.set(0, item.size[1] * 0.84, 0);
+    group.add(bulb);
   } else {
-    const cabinet = new THREE.Mesh(new THREE.BoxGeometry(...item.size), material);
-    const doorLine = new THREE.Mesh(new THREE.BoxGeometry(0.025, item.size[1] * 0.84, item.size[2] * 1.02), darkMaterial);
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, item.size[1] * 0.16, 0.08), darkMaterial);
-    cabinet.position.y = item.size[1] * 0.5;
-    doorLine.position.y = item.size[1] * 0.5;
-    handle.position.set(item.size[0] * 0.18, item.size[1] * 0.55, item.size[2] * 0.52);
-    group.add(cabinet, doorLine, handle);
+    addBox(group, THREE, item.size, material, [0, item.size[1] * 0.5, 0]);
+    addBox(group, THREE, [item.size[0] * 0.88, 0.035, item.size[2] * 1.02], darkMaterial, [0, item.size[1] * 0.34, item.size[2] * 0.51]);
+    addBox(group, THREE, [item.size[0] * 0.88, 0.035, item.size[2] * 1.02], darkMaterial, [0, item.size[1] * 0.64, item.size[2] * 0.51]);
+    addBox(group, THREE, [0.025, item.size[1] * 0.84, item.size[2] * 1.02], darkMaterial, [0, item.size[1] * 0.5, item.size[2] * 0.51]);
+    addBox(group, THREE, [0.05, item.size[1] * 0.16, 0.08], darkMaterial, [item.size[0] * 0.18, item.size[1] * 0.55, item.size[2] * 0.56]);
+    addBox(group, THREE, [0.05, item.size[1] * 0.16, 0.08], darkMaterial, [-item.size[0] * 0.18, item.size[1] * 0.55, item.size[2] * 0.56]);
   }
 
   if (product.imported) {
@@ -3162,7 +3334,8 @@ async function generateDesign(event) {
 }
 
 function runDemoRoom() {
-  setFormValues(demoRoomValues);
+  const selectedDemo = demoRoomPresets[demoSelector?.value] || demoRoomValues;
+  setFormValues(selectedDemo);
   updateProductSourceStatus();
   designForm.requestSubmit();
   saveStatus.textContent = "Demo loaded";
@@ -3206,6 +3379,8 @@ function resetDesign() {
 
 designForm.addEventListener("submit", generateDesign);
 demoButton?.addEventListener("click", runDemoRoom);
+showFormPanelsButton?.addEventListener("click", () => setFormPanelsOpen(true));
+hideFormPanelsButton?.addEventListener("click", () => setFormPanelsOpen(false));
 resetButton.addEventListener("click", resetDesign);
 saveButton.addEventListener("click", saveCurrentRoom);
 designForm.elements.namedItem("roomTemplate").addEventListener("change", (event) => {
@@ -3278,3 +3453,5 @@ resetCeilingLightRows();
 resetOwnedFurnitureRows();
 restoreProductSettings();
 renderSavedRooms();
+renderMobileQrCode();
+setCompactMobilePanels();
