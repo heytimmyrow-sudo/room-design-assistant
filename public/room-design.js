@@ -1,5 +1,6 @@
 const designForm = document.querySelector("#designForm");
 const resetButton = document.querySelector("#resetButton");
+const demoButton = document.querySelector("#demoButton");
 const emptyState = document.querySelector("#emptyState");
 const results = document.querySelector("#results");
 
@@ -49,6 +50,42 @@ let activeSaveId = "";
 let currentSnapshot = null;
 let gltfLoaderPromise = null;
 const MAX_MODEL_PRODUCTS = 8;
+
+const demoRoomValues = {
+  roomTemplate: "rental-living-room",
+  roomType: "rental living room",
+  roomName: "Demo rental living room",
+  designStyle: "cozy",
+  favoriteColors: "sage green, warm cream, walnut",
+  budget: "1800",
+  dimensions: "12 x 15 ft",
+  doorLocation: "front",
+  doorNote: "near the left corner",
+  windowPlan: "back center, right wall",
+  wallPlan: "renter-friendly layout with no-drill storage and open walkway",
+  extraSpaces: [
+    { name: "Reading nook", dimensions: "4 x 6 ft", side: "right" }
+  ],
+  outlets: [
+    { wall: "front", position: "center" },
+    { wall: "right", position: "left" }
+  ],
+  ceilingLights: [
+    { type: "flush", position: "center" },
+    { type: "pendant", position: "right" }
+  ],
+  ownedFurniture: [
+    { name: "Existing TV stand", dimensions: "58 x 16 x 24 in", type: "storage" },
+    { name: "Round side table", dimensions: "20 x 20 x 22 in", type: "table" }
+  ],
+  modelView: "3d",
+  mustHaves: "sofa, storage ottoman, floor lamp",
+  furnitureLinks: "",
+  modelLinks: "",
+  productSource: "search",
+  productApiKey: "",
+  addStoreLinks: true
+};
 
 const roomTemplates = {
   "small-bedroom": {
@@ -3124,6 +3161,13 @@ async function generateDesign(event) {
   }
 }
 
+function runDemoRoom() {
+  setFormValues(demoRoomValues);
+  updateProductSourceStatus();
+  designForm.requestSubmit();
+  saveStatus.textContent = "Demo loaded";
+}
+
 function resetDesign() {
   results.classList.add("hidden");
   emptyState.classList.remove("hidden");
@@ -3161,6 +3205,7 @@ function resetDesign() {
 }
 
 designForm.addEventListener("submit", generateDesign);
+demoButton?.addEventListener("click", runDemoRoom);
 resetButton.addEventListener("click", resetDesign);
 saveButton.addEventListener("click", saveCurrentRoom);
 designForm.elements.namedItem("roomTemplate").addEventListener("change", (event) => {

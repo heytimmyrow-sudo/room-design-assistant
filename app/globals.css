@@ -269,7 +269,7 @@ textarea:focus-visible {
 
 .button-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
 }
 
@@ -313,6 +313,15 @@ button:disabled {
 
 .secondary-button:hover {
   background: #dfd1bd;
+}
+
+.demo-button {
+  background: #232a34;
+  color: #ffffff;
+}
+
+.demo-button:hover {
+  background: #303946;
 }
 
 .save-button {

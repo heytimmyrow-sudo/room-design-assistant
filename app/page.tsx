@@ -392,6 +392,9 @@ export default function Home() {
               <button type="submit" className="primary-button">
                 Generate Design
               </button>
+              <button type="button" className="demo-button" id="demoButton">
+                Try Demo Room
+              </button>
               <button type="reset" className="secondary-button" id="resetButton">
                 Reset
               </button>
