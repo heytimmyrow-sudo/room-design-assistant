@@ -604,7 +604,7 @@ export default function Home() {
         </section>
       </main>
       <Script
-        src="https://unpkg.com/three@0.160.0/build/three.min.js"
+        src="https://unpkg.com/three@0.149.0/build/three.min.js"
         strategy="beforeInteractive"
       />
       <Script

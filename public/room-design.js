@@ -2935,7 +2935,7 @@ function addCeilingLightObject(scene, light, width, length, THREE) {
 
 async function getGLTFLoader(THREE) {
   if (!gltfLoaderPromise) {
-    gltfLoaderPromise = import("https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js?deps=three@0.160.0")
+    gltfLoaderPromise = import("https://esm.sh/three@0.149.0/examples/jsm/loaders/GLTFLoader.js?deps=three@0.149.0")
       .then((module) => new module.GLTFLoader())
       .catch(() => null);
   }
