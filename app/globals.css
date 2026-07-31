@@ -385,7 +385,7 @@ button:disabled {
 
 .saved-room-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -762,7 +762,7 @@ li + li {
   width: 22px;
   height: 22px;
   min-height: 22px;
-  accent-color: var(--teal);
+  accent-color: var(--accent);
 }
 
 .full-tool-button {
@@ -842,8 +842,12 @@ li + li {
 .tool-button-row,
 .export-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.export-actions {
+  grid-template-columns: 1fr;
 }
 
 .placement-tools button,
@@ -1408,6 +1412,30 @@ li + li {
   border-radius: 50%;
 }
 
+.product-shape.chair {
+  width: 42%;
+  height: 68px;
+  border-radius: 12px 12px 8px 8px;
+}
+
+.product-shape.desk {
+  width: 72%;
+  height: 38px;
+  border-radius: 6px;
+}
+
+.product-shape.bed {
+  width: 82%;
+  height: 72px;
+  border-radius: 14px 14px 8px 8px;
+}
+
+.product-shape.electronics {
+  width: 68%;
+  height: 82px;
+  border-radius: 8px;
+}
+
 .product-shape.storage {
   width: 54%;
   height: 92px;
@@ -1534,9 +1562,49 @@ li + li {
   background: var(--accent);
 }
 
+.site-info {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.55fr);
+  gap: 18px;
+  margin-top: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255, 250, 242, 0.86);
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.site-info h2,
+.site-info h3,
+.site-info p {
+  margin-top: 0;
+}
+
+.site-info p {
+  color: var(--muted);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.info-grid article {
+  border: 1px solid #e4d9cc;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
 @media (max-width: 860px) {
   .hero,
-  .workspace {
+  .workspace,
+  .site-info {
+    grid-template-columns: 1fr;
+  }
+
+  .info-grid {
     grid-template-columns: 1fr;
   }
 

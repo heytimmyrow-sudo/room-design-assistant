@@ -59,10 +59,12 @@ export default function Home() {
                   <option value="small-bedroom">Small bedroom</option>
                   <option value="gaming-setup">Gaming setup</option>
                   <option value="studio-apartment">Studio apartment</option>
-                  <option value="shared-kids-room">Shared kids room</option>
-                  <option value="home-office">Home office</option>
-                </select>
-              </label>
+                <option value="shared-kids-room">Shared kids room</option>
+                <option value="home-office">Home office</option>
+                <option value="rental-living-room">Rental living room</option>
+                <option value="small-dining-room">Small dining room</option>
+              </select>
+            </label>
 
               <label htmlFor="designStyle">
                 Design style
@@ -399,7 +401,7 @@ export default function Home() {
               Save Room Plan
             </button>
 
-            <details className="saved-rooms form-panel">
+            <details className="saved-rooms form-panel" open>
               <summary>
                 <span id="savedRoomsTitle">Saved Rooms</span>
                 <span id="saveStatus" aria-live="polite"></span>
@@ -480,6 +482,7 @@ export default function Home() {
                         <div className="export-actions">
                           <button type="button" className="secondary-button" id="downloadImageButton">Download Image</button>
                           <button type="button" className="secondary-button" id="downloadPdfButton">Download PDF</button>
+                          <button type="button" className="secondary-button" id="downloadChecklistButton">Download List</button>
                         </div>
                       </section>
                     </div>
@@ -533,6 +536,42 @@ export default function Home() {
               </div>
             </div>
           </section>
+        </section>
+        <section className="site-info" aria-labelledby="siteInfoTitle">
+          <div>
+            <p className="eyebrow">Free public beta</p>
+            <h2 id="siteInfoTitle">Plan rooms in your browser</h2>
+            <p>
+              Room Design Assistant stores saved rooms on this device, creates
+              browser-only plans, and uses store search links unless you add
+              your own product API details.
+            </p>
+          </div>
+          <div className="info-grid">
+            <article>
+              <h3>About</h3>
+              <p>
+                A practical room planner for trying layouts, budgets, colors,
+                existing furniture, and simple 2D or 3D room models before you
+                shop.
+              </p>
+            </article>
+            <article>
+              <h3>Privacy</h3>
+              <p>
+                Saved rooms and API settings are stored in your browser's local
+                storage. Clearing browser data can remove them.
+              </p>
+            </article>
+            <article>
+              <h3>Terms</h3>
+              <p>
+                Designs, prices, measurements, and shopping links are planning
+                aids. Always confirm fit, cost, safety, and product details
+                before buying.
+              </p>
+            </article>
+          </div>
         </section>
       </main>
       <Script

@@ -29,6 +29,7 @@ const moodBoard = document.querySelector("#moodBoard");
 const styleNotes = document.querySelector("#styleNotes");
 const downloadImageButton = document.querySelector("#downloadImageButton");
 const downloadPdfButton = document.querySelector("#downloadPdfButton");
+const downloadChecklistButton = document.querySelector("#downloadChecklistButton");
 const saveButton = document.querySelector("#saveButton");
 const savedRoomList = document.querySelector("#savedRoomList");
 const saveStatus = document.querySelector("#saveStatus");
@@ -89,6 +90,22 @@ const roomTemplates = {
     mustHaves: "standing desk, task chair, storage cabinet",
     windowPlan: "right wall",
     wallPlan: "desk should face away from window glare"
+  },
+  "rental-living-room": {
+    roomType: "rental living room",
+    designStyle: "cozy",
+    dimensions: "12 x 15 ft",
+    mustHaves: "sofa, media console, storage ottoman",
+    windowPlan: "back center",
+    wallPlan: "use renter-friendly lighting and no-drill storage"
+  },
+  "small-dining-room": {
+    roomType: "dining room",
+    designStyle: "minimalist",
+    dimensions: "9 x 10 ft",
+    mustHaves: "round dining table, four chairs, narrow cabinet",
+    windowPlan: "left center",
+    wallPlan: "keep chair pull-out space clear"
   }
 };
 
@@ -184,27 +201,37 @@ const suggestedFurnitureByStyle = {
   cozy: [
     ["Reading Floor Lamp", "warm linen shade for a quiet evening corner", "18 x 18 x 62 in", "$70-$160", "#c8943f", "light"],
     ["Woven Storage Basket", "soft storage for blankets, toys, or everyday clutter", "20 x 16 x 16 in", "$35-$85", "#9c7a55", "storage"],
-    ["Compact Accent Chair", "extra seat with rounded arms and textured fabric", "30 x 32 x 34 in", "$180-$420", "#8a8f67", "chair"]
+    ["Compact Accent Chair", "extra seat with rounded arms and textured fabric", "30 x 32 x 34 in", "$180-$420", "#8a8f67", "chair"],
+    ["Curtain Panel Pair", "softens light and adds cozy texture", "52 x 84 in", "$35-$120", "#f1d7bd", "storage"],
+    ["Pouf Footrest", "small flexible piece for seating or lounging", "20 x 20 x 16 in", "$45-$140", "#b98365", "seat"]
   ],
   modern: [
     ["Slim Console Table", "narrow landing zone with a clean metal frame", "44 x 12 x 30 in", "$120-$280", "#2f3437", "table"],
     ["Low Planter Stand", "structured greenery without taking much floor space", "16 x 16 x 24 in", "$45-$120", "#0f766e", "storage"],
-    ["Swivel Accent Chair", "compact seating with a polished modern profile", "31 x 31 x 32 in", "$240-$620", "#b58b3b", "chair"]
+    ["Swivel Accent Chair", "compact seating with a polished modern profile", "31 x 31 x 32 in", "$240-$620", "#b58b3b", "chair"],
+    ["Wall-Mounted Desk", "compact work surface for mixed-use rooms", "36 x 18 x 30 in", "$120-$260", "#76563d", "desk"],
+    ["Framed Floor Mirror", "adds light and checks proportions near the entry", "24 x 2 x 64 in", "$90-$260", "#d8d0c5", "storage"]
   ],
   minimalist: [
     ["Wall-Mounted Shelf", "simple display and storage that keeps the floor open", "36 x 10 x 8 in", "$55-$140", "#c9a66b", "storage"],
     ["Paper Shade Floor Lamp", "soft light with a quiet sculptural shape", "15 x 15 x 58 in", "$45-$130", "#fafaf7", "light"],
-    ["Small Round Stool", "flexible seat or side table with a small footprint", "16 x 16 x 18 in", "$50-$120", "#b9b5ad", "chair"]
+    ["Small Round Stool", "flexible seat or side table with a small footprint", "16 x 16 x 18 in", "$50-$120", "#b9b5ad", "chair"],
+    ["Under-Bed Storage Bin", "keeps backup items out of sight", "36 x 18 x 7 in", "$25-$70", "#e6e0d5", "storage"],
+    ["Simple Writing Desk", "small workspace with clean lines", "42 x 22 x 30 in", "$110-$260", "#c9a66b", "desk"]
   ],
   luxury: [
     ["Velvet Storage Ottoman", "rich texture plus hidden storage for blankets", "42 x 22 x 18 in", "$180-$480", "#0d5c50", "seat"],
     ["Brass Picture Light", "focused accent lighting for art or shelving", "20 x 6 x 8 in", "$90-$220", "#d4b16a", "light"],
-    ["Marble-Look Drink Table", "small polished perch for seating zones", "14 x 14 x 24 in", "$120-$280", "#f4ede1", "table"]
+    ["Marble-Look Drink Table", "small polished perch for seating zones", "14 x 14 x 24 in", "$120-$280", "#f4ede1", "table"],
+    ["Tufted Accent Bench", "polished seat for the foot of a bed or entry", "48 x 18 x 20 in", "$220-$520", "#8f5f73", "seat"],
+    ["Layered Table Lamp", "warm side lighting with a tailored shade", "16 x 16 x 28 in", "$120-$320", "#d4b16a", "light"]
   ],
   gaming: [
     ["Cable Management Rack", "keeps power strips and cords off the floor", "24 x 8 x 6 in", "$25-$70", "#20242a", "storage"],
     ["LED Corner Lamp", "vertical color light for ambient game lighting", "10 x 10 x 58 in", "$45-$140", "#18b7d9", "light"],
-    ["Controller Display Shelf", "small wall-style display for gear and collectibles", "32 x 8 x 24 in", "$50-$150", "#7c3aed", "storage"]
+    ["Controller Display Shelf", "small wall-style display for gear and collectibles", "32 x 8 x 24 in", "$50-$150", "#7c3aed", "storage"],
+    ["Compact Streaming Desk", "extra surface for mic, camera, or console gear", "48 x 24 x 30 in", "$160-$360", "#20242a", "desk"],
+    ["Monitor Arm", "frees desk space and improves screen position", "18 x 6 x 20 in", "$45-$150", "#18b7d9", "electronics"]
   ]
 };
 
@@ -1201,6 +1228,9 @@ function showFurnitureList(products) {
 function renderSavedRooms() {
   const savedRooms = getSavedRooms();
   savedRoomList.innerHTML = "";
+  saveStatus.textContent = savedRooms.length
+    ? `${savedRooms.length} saved`
+    : "";
 
   if (!savedRooms.length) {
     const empty = document.createElement("p");
@@ -1252,7 +1282,14 @@ function renderSavedRooms() {
     renameButton.setAttribute("aria-label", `Rename ${room.name}`);
     renameButton.addEventListener("click", () => renameSavedRoom(room.id));
 
-    actions.append(loadButton, duplicateButton, renameButton, deleteButton);
+    const exportButton = document.createElement("button");
+    exportButton.type = "button";
+    exportButton.className = "secondary-button";
+    exportButton.textContent = "Export";
+    exportButton.setAttribute("aria-label", `Export ${room.name}`);
+    exportButton.addEventListener("click", () => exportSavedRoom(room.id));
+
+    actions.append(loadButton, duplicateButton, renameButton, exportButton, deleteButton);
     card.append(title, meta, actions);
     savedRoomList.appendChild(card);
   });
@@ -1382,7 +1419,7 @@ function saveCurrentRoom() {
   saveStatus.textContent = "Saved";
   setTimeout(() => {
     if (saveStatus.textContent === "Saved") {
-      saveStatus.textContent = "";
+      renderSavedRooms();
     }
   }, 1800);
 }
@@ -1455,6 +1492,29 @@ function renameSavedRoom(id) {
     : item));
   renderSavedRooms();
   saveStatus.textContent = "Renamed";
+}
+
+function makeSafeFilename(value) {
+  return String(value || "room-design")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 72) || "room-design";
+}
+
+function exportSavedRoom(id) {
+  const room = getSavedRooms().find((item) => item.id === id);
+
+  if (!room) {
+    return;
+  }
+
+  downloadTextFile(
+    `${makeSafeFilename(room.name)}.json`,
+    JSON.stringify(room, null, 2),
+    "application/json"
+  );
+  saveStatus.textContent = "Exported";
 }
 
 function showPalette(colors, favoriteColors) {
@@ -1664,6 +1724,45 @@ function exportRoomImage() {
   }
 }
 
+function buildShoppingListText(snapshot) {
+  const lines = [
+    snapshot.title,
+    "",
+    `Room: ${snapshot.formValues.roomName || snapshot.formValues.roomType || "Untitled room"}`,
+    `Dimensions: ${snapshot.roomShape?.label || snapshot.dimensions?.label || "Not set"}`,
+    `Budget: ${snapshot.formValues.budget ? `$${Number(snapshot.formValues.budget).toLocaleString()}` : "Not set"}`,
+    "",
+    "Furniture",
+    ...snapshot.products.map((product) => {
+      const link = product.sourceUrl ? ` - ${product.sourceUrl}` : "";
+      const placement = product.placementLabel ? ` - placed at ${product.placementLabel}` : "";
+      return `- ${product.name}: ${product.size}, ${product.price}${placement}${link}`;
+    }),
+    "",
+    "Checklist",
+    ...(snapshot.checklist || []).map((item) => `- ${item}`),
+    "",
+    "Decor Ideas",
+    ...(snapshot.decor || []).map((item) => `- ${item}`),
+    "",
+    "Layout",
+    snapshot.layout || ""
+  ];
+
+  return lines.join("\n");
+}
+
+function exportShoppingList() {
+  if (!currentSnapshot) {
+    return;
+  }
+
+  downloadTextFile(
+    `${makeSafeFilename(currentSnapshot.title)}-shopping-list.txt`,
+    buildShoppingListText(currentSnapshot)
+  );
+}
+
 function exportRoomPdf() {
   if (!currentSnapshot) {
     return;
@@ -1684,13 +1783,18 @@ function exportRoomPdf() {
           h1 { margin-bottom: 8px; }
           h2 { margin-top: 24px; }
           li { margin-bottom: 6px; }
+          a { color: #115e59; }
         </style>
       </head>
       <body>
         <h1>${escapeHtml(currentSnapshot.title)}</h1>
         <p>${escapeHtml(currentSnapshot.description)}</p>
         <h2>Furniture</h2>
-        <ul>${currentSnapshot.products.map((product) => `<li>${escapeHtml(product.name)}: ${escapeHtml(product.size)}, ${escapeHtml(product.price)}</li>`).join("")}</ul>
+        <ul>${currentSnapshot.products.map((product) => `<li>${escapeHtml(product.name)}: ${escapeHtml(product.size)}, ${escapeHtml(product.price)}${product.placementLabel ? `, placed at ${escapeHtml(product.placementLabel)}` : ""}${product.sourceUrl ? ` - <a href="${escapeHtml(product.sourceUrl)}">store link</a>` : ""}</li>`).join("")}</ul>
+        <h2>Shopping Checklist</h2>
+        <ul>${(currentSnapshot.checklist || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        <h2>Decor Ideas</h2>
+        <ul>${(currentSnapshot.decor || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
         <h2>Budget</h2>
         <p>Estimated total: $${(currentSnapshot.budgetSummary?.plannedTotal || 0).toLocaleString()} - ${escapeHtml(currentSnapshot.budgetSummary?.status || "")}</p>
         <h2>Fit Warnings</h2>
@@ -3095,6 +3199,7 @@ placementCommand?.addEventListener("keydown", (event) => {
 applyPlacementButton?.addEventListener("click", applyTypedPlacement);
 downloadImageButton?.addEventListener("click", exportRoomImage);
 downloadPdfButton?.addEventListener("click", exportRoomPdf);
+downloadChecklistButton?.addEventListener("click", exportShoppingList);
 addSpaceButton.addEventListener("click", () => {
   extraSpaces.appendChild(createExtraSpaceRow());
 });
